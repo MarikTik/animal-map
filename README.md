@@ -269,23 +269,84 @@ flutter devices
 
 # ▶ Running the Application
 
-Navigate to the project directory:
+## Prerequisites
+
+Before running the app, ensure:
+
+1. Flutter is installed and `flutter doctor` reports no errors.
+2. An Android device is connected via USB with USB debugging enabled.
+3. `android/local.properties` contains a valid `MAPS_API_KEY` entry
+   (see [Google Maps API Key](#-google-maps-api-key)).
+
+## Verify Device Connection
+
+```bash
+adb devices
+flutter devices
+```
+
+Both commands should list the connected device.
+
+## Build and Run
+
+Navigate to the project root and run:
 
 ```bash
 cd animal_map
-```
-
-Run the application:
-
-```bash
+flutter clean
+flutter pub get
 flutter run -d <DEVICE_ID>
 ```
 
-To prevent Flutter from attempting Linux desktop builds:
+`flutter clean` removes stale build artifacts.
+`flutter pub get` fetches all dependencies.
+Replace `<DEVICE_ID>` with the device identifier shown by `flutter devices`.
+
+To prevent Flutter from attempting a Linux desktop build (if not needed):
 
 ```bash
 flutter config --no-enable-linux-desktop
 ```
+
+## Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Map shows blank white / grey tiles | Device has no internet connection | Connect to Wi‑Fi or mobile data |
+| Map shows blank white / grey tiles | GCP billing not enabled | Enable billing on the Cloud project |
+| Map shows blank white / grey tiles | API key missing or invalid | Verify `MAPS_API_KEY` in `android/local.properties` |
+| Build fails with missing API key | `local.properties` not created | Create the file and add the key (see above) |
+| `flutter run` finds no devices | USB debugging not enabled | Enable Developer Mode and USB Debugging on device |
+| `flutter run` finds no devices | USB cable is charge‑only | Use a data‑capable cable |
+
+---
+
+# 🧪 Running Tests
+
+Run the full test suite:
+
+```bash
+flutter test
+```
+
+Run a specific test file:
+
+```bash
+flutter test test/config/map_config_test.dart
+```
+
+## Test Organisation
+
+| Directory | Purpose |
+|-----------|---------|
+| `test/config/` | Unit tests for configuration constants |
+| `test/screens/` | Widget tests for screen widgets |
+| `test/services/` | Unit tests for service interfaces and fakes |
+| `test/fakes/` | Configurable fake implementations for DI |
+| `test/stories/` | BDD‑style scenario tests grouped by user story |
+
+Widget tests inject fakes via constructor parameters to avoid
+real platform calls during testing.
 
 ---
 
@@ -294,48 +355,81 @@ flutter config --no-enable-linux-desktop
 ```
 animal_map/
 │
-├── lib/                # Dart application source code
-│   └── main.dart
+├── lib/
+│   ├── main.dart                          # Entry point, map renderer init
+│   ├── app.dart                           # Root MaterialApp with DI
+│   ├── config/
+│   │   └── map_config.dart                # Map constants (center, zoom)
+│   ├── screens/
+│   │   └── map/
+│   │       └── map_screen.dart            # Google Map widget
+│   └── services/
+│       ├── location_permission_service.dart       # Abstract interface
+│       └── location_permission_service_impl.dart  # Concrete implementation
 │
-├── android/            # Android build configuration
-├── ios/                # iOS build configuration
-├── web/                # Web configuration (optional)
-├── test/               # Widget/unit tests
+├── test/
+│   ├── config/
+│   │   └── map_config_test.dart           # MapConfig unit tests
+│   ├── fakes/
+│   │   └── fake_location_permission_service.dart  # Configurable fake
+│   ├── screens/
+│   │   └── map/
+│   │       └── map_screen_test.dart       # Widget tests with DI
+│   ├── services/
+│   │   └── location_permission_service_test.dart  # Service unit tests
+│   └── stories/
+│       └── story1/
+│           └── map_renders_test.dart      # BDD scenario tests
 │
-├── pubspec.yaml        # Dependencies and metadata
-└── build/              # Generated artifacts (ignored)
+├── android/                               # Android build configuration
+├── ios/                                   # iOS build configuration
+├── web/                                   # Web configuration
+├── pubspec.yaml                           # Dependencies and metadata
+└── build/                                 # Generated artifacts (ignored)
 ```
 
-The primary development work occurs in:
+Architecture follows **Dependency Inversion Principle (DIP)**:
 
-```
-lib/
-```
+- Services are defined as abstract interfaces in `lib/services/`
+- Concrete implementations live alongside their interfaces
+- Widgets accept services via constructor injection
+- Tests substitute fakes from `test/fakes/`
 
 ---
 
 # 🔐 Google Maps API Key
 
-Google Maps requires an API key.
+Google Maps requires an API key obtained from the
+[Google Cloud Console](https://console.cloud.google.com/).
 
-Add the key to:
+## Obtaining a Key
+
+1. Create a Google Cloud project (or reuse an existing one).
+2. Enable **Maps SDK for Android** under APIs & Services.
+3. Create an API key under **Credentials**.
+4. Restrict the key by **Android application** with:
+   - package name (`com.example.animal_map`)
+   - SHA‑1 certificate fingerprint
+
+## Configuring the Key
+
+The key is **never committed to version control**.
+
+Create or edit `android/local.properties` and add:
+
+```properties
+MAPS_API_KEY=YOUR_API_KEY_HERE
+```
+
+The build pipeline wires the key automatically:
 
 ```
-android/app/src/main/AndroidManifest.xml
+android/local.properties          (source of truth, gitignored)
+  → android/app/build.gradle.kts  (reads key, sets manifestPlaceholders)
+    → AndroidManifest.xml          (references ${MAPS_API_KEY} placeholder)
 ```
 
-Example:
-
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="YOUR_API_KEY_HERE"/>
-```
-
-For security, always restrict the key by:
-
-- package name
-- SHA‑1 certificate fingerprint
+No manual editing of `AndroidManifest.xml` is required.
 
 ---
 
