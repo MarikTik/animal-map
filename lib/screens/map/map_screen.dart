@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../config/map_config.dart';
+import '../../services/location_permission_service.dart';
 
 /// Main screen that displays the Google Map.
 ///
-/// Responsible only for rendering the map widget and managing the
-/// [GoogleMapController]. All configuration is delegated to [MapConfig].
+/// Accepts a [LocationPermissionService] via constructor injection
+/// to enable dependency inversion and testability.
+/// Requests location permission on initialization and enables
+/// the "my location" layer when granted.
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({super.key, required this.locationPermissionService});
+
+  /// Injected permission service (interface, not concrete).
+  final LocationPermissionService locationPermissionService;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -16,6 +22,20 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
+  bool _myLocationEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestLocationPermission();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    final granted = await widget.locationPermissionService.request();
+    setState(() {
+      _myLocationEnabled = granted;
+    });
+  }
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
@@ -47,8 +67,8 @@ class _MapScreenState extends State<MapScreen> {
         rotateGesturesEnabled: true,
         tiltGesturesEnabled: true,
         mapType: MapType.normal,
-        myLocationEnabled: false,
-        myLocationButtonEnabled: false,
+        myLocationEnabled: _myLocationEnabled,
+        myLocationButtonEnabled: _myLocationEnabled,
       ),
     );
   }
