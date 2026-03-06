@@ -1,12 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:animal_map/app.dart';
 import 'package:animal_map/config/map_config.dart';
 
+import '../../fakes/fake_location_permission_service.dart';
+
 /// BDD scenarios for Story 1: Map renders in the app
 void main() {
   group('Story 1 — Map renders in the app', () {
+    late FakeLocationPermissionService fakePermissionService;
+
+    setUp(() {
+      fakePermissionService = FakeLocationPermissionService();
+    });
+
     // Scenario: App launches and map renders
     // Given the app is installed and a valid Google Maps API key is configured
     // When I open the app
@@ -15,7 +24,10 @@ void main() {
     testWidgets(
       'Scenario: App launches and map renders with pan and zoom',
       (WidgetTester tester) async {
-        await tester.pumpWidget(const AnimalMapApp());
+        await tester.pumpWidget(AnimalMapApp(
+          locationPermissionService: fakePermissionService,
+        ));
+        await tester.pumpAndSettle();
 
         // Then a Google Map is displayed
         expect(find.byType(GoogleMap), findsOneWidget);
@@ -37,7 +49,12 @@ void main() {
     testWidgets(
       'Scenario: Default camera position when location not granted',
       (WidgetTester tester) async {
-        await tester.pumpWidget(const AnimalMapApp());
+        fakePermissionService.statusAfterRequest = PermissionStatus.denied;
+
+        await tester.pumpWidget(AnimalMapApp(
+          locationPermissionService: fakePermissionService,
+        ));
+        await tester.pumpAndSettle();
 
         final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
 
@@ -62,12 +79,38 @@ void main() {
     testWidgets(
       'Scenario: Location layer disabled when permission not granted',
       (WidgetTester tester) async {
-        await tester.pumpWidget(const AnimalMapApp());
+        fakePermissionService.statusAfterRequest = PermissionStatus.denied;
+
+        await tester.pumpWidget(AnimalMapApp(
+          locationPermissionService: fakePermissionService,
+        ));
+        await tester.pumpAndSettle();
 
         final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
 
         expect(googleMap.myLocationEnabled, isFalse);
         expect(googleMap.myLocationButtonEnabled, isFalse);
+      },
+    );
+
+    // Scenario: Location layer enabled
+    // Given location permission is granted
+    // When the app loads the map
+    // Then the "my location" indicator is shown
+    testWidgets(
+      'Scenario: Location layer enabled when permission granted',
+      (WidgetTester tester) async {
+        fakePermissionService.statusAfterRequest = PermissionStatus.granted;
+
+        await tester.pumpWidget(AnimalMapApp(
+          locationPermissionService: fakePermissionService,
+        ));
+        await tester.pumpAndSettle();
+
+        final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+
+        expect(googleMap.myLocationEnabled, isTrue);
+        expect(googleMap.myLocationButtonEnabled, isTrue);
       },
     );
   });

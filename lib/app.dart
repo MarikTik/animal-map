@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 
 import 'screens/map/map_screen.dart';
+import 'services/location_permission_service.dart';
+import 'services/location_permission_service_impl.dart';
 
 /// Root application widget.
 ///
-/// Configures theming and sets [MapScreen] as the home screen.
+/// Configures theming and provides production dependencies
+/// to child screens.
 class AnimalMapApp extends StatelessWidget {
-  const AnimalMapApp({super.key});
+  /// Creates the app with an optional [LocationPermissionService] override.
+  ///
+  /// Defaults to [LocationPermissionServiceImpl] for production.
+  /// Pass a fake/mock for testing.
+  const AnimalMapApp({super.key, LocationPermissionService? locationPermissionService})
+      : _locationPermissionService = locationPermissionService;
+
+  final LocationPermissionService? _locationPermissionService;
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +25,10 @@ class AnimalMapApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.cyan),
       ),
-      home: const MapScreen(),
+      home: MapScreen(
+        locationPermissionService:
+            _locationPermissionService ?? LocationPermissionServiceImpl(),
+      ),
     );
   }
 }
