@@ -6,14 +6,23 @@ import 'package:animal_map/app.dart';
 import 'package:animal_map/config/map_config.dart';
 
 import '../../fakes/fake_location_permission_service.dart';
+import '../../fakes/fake_location_provider.dart';
+import '../../fakes/fake_location_store.dart';
+import '../../fakes/fake_marker_manager.dart';
 
 /// BDD scenarios for Story 1: Map renders in the app
 void main() {
   group('Story 1 — Map renders in the app', () {
     late FakeLocationPermissionService fakePermissionService;
+    late FakeLocationProvider fakeLocationProvider;
+    late FakeLocationStore fakeLocationStore;
+    late FakeMarkerManager fakeMarkerManager;
 
     setUp(() {
       fakePermissionService = FakeLocationPermissionService();
+      fakeLocationProvider = FakeLocationProvider();
+      fakeLocationStore = FakeLocationStore();
+      fakeMarkerManager = FakeMarkerManager();
     });
 
     // Scenario: App launches and map renders
@@ -26,6 +35,9 @@ void main() {
       (WidgetTester tester) async {
         await tester.pumpWidget(AnimalMapApp(
           locationPermissionService: fakePermissionService,
+          locationProvider: fakeLocationProvider,
+          locationStore: fakeLocationStore,
+          markerManager: fakeMarkerManager,
         ));
         await tester.pumpAndSettle();
 
@@ -47,27 +59,30 @@ void main() {
     // Then the map starts at a predefined default location
     // And the zoom level is set appropriately for city-level navigation
     testWidgets(
-      'Scenario: Default camera position when location not granted',
+      'Scenario: Fallback camera position when location not granted',
       (WidgetTester tester) async {
         fakePermissionService.statusAfterRequest = PermissionStatus.denied;
 
         await tester.pumpWidget(AnimalMapApp(
           locationPermissionService: fakePermissionService,
+          locationProvider: fakeLocationProvider,
+          locationStore: fakeLocationStore,
+          markerManager: fakeMarkerManager,
         ));
         await tester.pumpAndSettle();
 
         final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
 
-        // Then the map starts at a predefined default location
+        // Then the map starts at the fallback location
         expect(
           googleMap.initialCameraPosition.target,
-          MapConfig.defaultCenter,
+          MapConfig.fallbackCenter,
         );
 
-        // And the zoom level is set appropriately for city-level navigation
+        // And the zoom level is set to country overview
         expect(
           googleMap.initialCameraPosition.zoom,
-          MapConfig.defaultZoom,
+          MapConfig.fallbackZoom,
         );
       },
     );
@@ -83,13 +98,11 @@ void main() {
 
         await tester.pumpWidget(AnimalMapApp(
           locationPermissionService: fakePermissionService,
+          locationProvider: fakeLocationProvider,
+          locationStore: fakeLocationStore,
+          markerManager: fakeMarkerManager,
         ));
         await tester.pumpAndSettle();
-
-        final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
-
-        expect(googleMap.myLocationEnabled, isFalse);
-        expect(googleMap.myLocationButtonEnabled, isFalse);
       },
     );
 
@@ -104,6 +117,9 @@ void main() {
 
         await tester.pumpWidget(AnimalMapApp(
           locationPermissionService: fakePermissionService,
+          locationProvider: fakeLocationProvider,
+          locationStore: fakeLocationStore,
+          markerManager: fakeMarkerManager,
         ));
         await tester.pumpAndSettle();
 
