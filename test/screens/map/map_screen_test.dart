@@ -7,19 +7,31 @@ import 'package:animal_map/config/map_config.dart';
 import 'package:animal_map/screens/map/map_screen.dart';
 
 import '../../fakes/fake_location_permission_service.dart';
+import '../../fakes/fake_location_provider.dart';
+import '../../fakes/fake_location_store.dart';
+import '../../fakes/fake_marker_manager.dart';
 
 void main() {
   group('MapScreen', () {
     late FakeLocationPermissionService fakePermissionService;
+    late FakeLocationProvider fakeLocationProvider;
+    late FakeLocationStore fakeLocationStore;
+    late FakeMarkerManager fakeMarkerManager;
 
     setUp(() {
       fakePermissionService = FakeLocationPermissionService();
+      fakeLocationProvider = FakeLocationProvider();
+      fakeLocationStore = FakeLocationStore();
+      fakeMarkerManager = FakeMarkerManager();
     });
 
     Widget buildSubject() {
       return MaterialApp(
         home: MapScreen(
           locationPermissionService: fakePermissionService,
+          locationProvider: fakeLocationProvider,
+          locationStore: fakeLocationStore,
+          markerManager: fakeMarkerManager,
         ),
       );
     }
@@ -41,7 +53,7 @@ void main() {
       expect(find.byType(GoogleMap), findsOneWidget);
     });
 
-    testWidgets('GoogleMap uses MapConfig initial camera position', (
+    testWidgets('GoogleMap uses fallback camera position', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(buildSubject());
@@ -51,11 +63,11 @@ void main() {
 
       expect(
         googleMap.initialCameraPosition.target,
-        MapConfig.defaultCenter,
+        MapConfig.fallbackCenter,
       );
       expect(
         googleMap.initialCameraPosition.zoom,
-        MapConfig.defaultZoom,
+        MapConfig.fallbackZoom,
       );
     });
 
@@ -118,6 +130,206 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fakePermissionService.requestCallCount, 1);
+    });
+
+    testWidgets('markers are visible at default zoom', (
+      WidgetTester tester,
+    ) async {
+      fakeMarkerManager.addMarker(
+        position: MapConfig.fallbackCenter,
+        animalType: null,
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+
+      expect(googleMap.markers, isNotEmpty);
+    });
+
+    testWidgets('GoogleMap has an onCameraMove callback', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+
+      expect(googleMap.onCameraMove, isNotNull);
+    });
+
+    testWidgets('calls updateMarkerSize when zoom changes', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+
+      // Zoom to within the scaling range (between hidden and full).
+      googleMap.onCameraMove!(CameraPosition(
+        target: MapConfig.fallbackCenter,
+        zoom: (MapConfig.markerHiddenZoom + MapConfig.markerFullSizeZoom) / 2,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(fakeMarkerManager.updateSizeCallCount, greaterThan(0));
+    });
+
+    testWidgets('FAB tap activates placement mode, map tap places marker', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      // Tap FAB to enter placement mode.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // No marker added yet.
+      expect(fakeMarkerManager.addedMarkers, isEmpty);
+
+      // Simulate map tap.
+      const tapTarget = LatLng(40.7128, -74.0060);
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      googleMap.onTap!(tapTarget);
+      await tester.pumpAndSettle();
+
+      expect(fakeMarkerManager.addedMarkers.length, 1);
+      expect(fakeMarkerManager.addedMarkers.first.position, tapTarget);
+    });
+
+    testWidgets('FAB is positioned on the start (left) side', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+
+      expect(
+        scaffold.floatingActionButtonLocation,
+        FloatingActionButtonLocation.startFloat,
+      );
+    });
+
+    testWidgets('FAB has add_location icon with correct tooltip', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add_location), findsOneWidget);
+      expect(find.byTooltip('Add test marker'), findsOneWidget);
+    });
+
+    testWidgets('FAB shows glow and alt icon when placement mode active', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      // Tap FAB to enter placement mode.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add_location_alt), findsOneWidget);
+      expect(find.byTooltip('Tap map to place marker'), findsOneWidget);
+    });
+
+    testWidgets('map tap outside placement mode does not add marker', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      googleMap.onTap!(const LatLng(33.0, -117.0));
+      await tester.pumpAndSettle();
+
+      expect(fakeMarkerManager.addedMarkers, isEmpty);
+    });
+
+    testWidgets('placement mode stays active after placing a marker', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      // Enter placement mode.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.add_location_alt), findsOneWidget);
+
+      // Tap map — marker placed, mode still active.
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      googleMap.onTap!(const LatLng(33.0, -117.0));
+      await tester.pumpAndSettle();
+
+      expect(fakeMarkerManager.addedMarkers.length, 1);
+      expect(find.byIcon(Icons.add_location_alt), findsOneWidget);
+
+      // Place another marker without re-pressing FAB.
+      googleMap.onTap!(const LatLng(33.1, -117.1));
+      await tester.pumpAndSettle();
+
+      expect(fakeMarkerManager.addedMarkers.length, 2);
+    });
+
+    testWidgets('placement mode deactivates when FAB is tapped again', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      // Enter placement mode.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.add_location_alt), findsOneWidget);
+
+      // Tap FAB again to deactivate.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.add_location), findsOneWidget);
+    });
+
+    testWidgets('marker tap triggers smooth pulse animation', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      // Add a marker via placement mode.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      googleMap.onTap!(const LatLng(33.0, -117.0));
+      await tester.pumpAndSettle();
+
+      // Reset scale tracking before the pulse.
+      fakeMarkerManager.scaleCallCount = 0;
+
+      // Tap the placed marker to start the pulse.
+      final marker = fakeMarkerManager.markers.first;
+      marker.onTap!();
+
+      // Advance in small steps to let the periodic timer fire.
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      // Multiple scale updates should have fired.
+      expect(fakeMarkerManager.scaleCallCount, greaterThan(1));
+
+      // Advance past the full pulse duration in small steps so
+      // the periodic timer fires its completion check.
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(fakeMarkerManager.lastScale, 1.0);
     });
   });
 }
