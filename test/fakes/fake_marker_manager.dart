@@ -1,6 +1,6 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import 'package:animal_map/models/animal_type.dart';
+import 'package:animal_map/models/hazard_type.dart';
 import 'package:animal_map/services/marker_manager.dart';
 
 /// A fake [MarkerManager] for testing.
@@ -10,7 +10,7 @@ import 'package:animal_map/services/marker_manager.dart';
 /// [MarkerIconLoader].
 class FakeMarkerManager implements MarkerManager {
   /// All markers added via [addMarker], in order.
-  final List<({LatLng position, AnimalType? animalType})> addedMarkers = [];
+  final List<({LatLng position, HazardType? hazardType})> addedMarkers = [];
 
   /// How many times [removeMarker] has been called.
   int removeCallCount = 0;
@@ -37,7 +37,7 @@ class FakeMarkerManager implements MarkerManager {
   MarkerTapCallback? onMarkerTapped;
 
   final Map<String, Marker> _markers = {};
-  final Map<String, AnimalType?> _animalTypes = {};
+  final Map<String, HazardType?> _hazardTypes = {};
   int _nextId = 0;
 
   @override
@@ -46,15 +46,15 @@ class FakeMarkerManager implements MarkerManager {
   @override
   String addMarker({
     required LatLng position,
-    required AnimalType? animalType,
+    required HazardType? hazardType,
   }) {
     final id = 'fake_marker_${_nextId++}';
-    addedMarkers.add((position: position, animalType: animalType));
-    _animalTypes[id] = animalType;
+    addedMarkers.add((position: position, hazardType: hazardType));
+    _hazardTypes[id] = hazardType;
     _markers[id] = Marker(
       markerId: MarkerId(id),
       position: position,
-      onTap: () => onMarkerTapped?.call(id, animalType),
+      onTap: () => onMarkerTapped?.call(id, hazardType),
     );
     return id;
   }

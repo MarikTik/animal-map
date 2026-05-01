@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../config/map_config.dart';
-import '../../models/animal_type.dart';
+import '../../models/hazard_type.dart';
 import '../../services/location_permission_service.dart';
 import '../../services/location_provider.dart';
 import '../../services/location_store.dart';
@@ -156,13 +156,13 @@ class _MapScreenState extends State<MapScreen> {
   void _onMapTap(LatLng position) {
     if (!_placementMode) return;
 
-    final types = [...AnimalType.values, null];
+    final types = [...HazardType.values, null];
     final type = types[_random.nextInt(types.length)];
 
     setState(() {
       widget.markerManager.addMarker(
         position: position,
-        animalType: type,
+        hazardType: type,
       );
     });
   }
@@ -171,12 +171,12 @@ class _MapScreenState extends State<MapScreen> {
   ///
   /// Starts a smooth grow-then-shrink pulse using a sine curve
   /// over [_pulseDuration], updating at [_pulseInterval].
-  void _onMarkerTapped(String markerId, AnimalType? animalType) {
+  void _onMarkerTapped(String markerId, HazardType? hazardType) {
     // Cancel any in-progress pulse and reset that marker.
     _cancelPulse();
 
     setState(() {
-      _selectedAnimalLabel = animalType?.label ?? 'Unknown animal';
+      _selectedAnimalLabel = hazardType?.label ?? 'Unknown animal';
     });
 
     _pulsingMarkerId = markerId;

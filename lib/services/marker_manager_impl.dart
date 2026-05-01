@@ -1,7 +1,7 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../config/map_config.dart';
-import '../models/animal_type.dart';
+import '../models/hazard_type.dart';
 import 'marker_icon_loader.dart';
 import 'marker_manager.dart';
 
@@ -30,11 +30,11 @@ class MarkerManagerImpl implements MarkerManager {
   @override
   String addMarker({
     required LatLng position,
-    required AnimalType? animalType,
+    required HazardType? hazardType,
   }) {
     final id = 'marker_${_nextId++}';
-    _entries[id] = _MarkerEntry(position: position, animalType: animalType);
-    _markers[id] = _buildMarker(id, position, animalType);
+    _entries[id] = _MarkerEntry(position: position, hazardType: hazardType);
+    _markers[id] = _buildMarker(id, position, hazardType);
     return id;
   }
 
@@ -64,7 +64,7 @@ class MarkerManagerImpl implements MarkerManager {
     _markers[markerId] = _buildMarker(
       markerId,
       entry.position,
-      entry.animalType,
+      entry.hazardType,
       sizeOverride: _currentSize * scale,
     );
   }
@@ -75,7 +75,7 @@ class MarkerManagerImpl implements MarkerManager {
       _markers[entry.key] = _buildMarker(
         entry.key,
         entry.value.position,
-        entry.value.animalType,
+        entry.value.hazardType,
       );
     }
   }
@@ -83,20 +83,20 @@ class MarkerManagerImpl implements MarkerManager {
   Marker _buildMarker(
     String id,
     LatLng position,
-    AnimalType? animalType, {
+    HazardType? hazardType, {
     double? sizeOverride,
   }) {
     return Marker(
       markerId: MarkerId(id),
       position: position,
-      icon: _iconLoader.load(animalType, size: sizeOverride ?? _currentSize),
-      onTap: () => onMarkerTapped?.call(id, animalType),
+      icon: _iconLoader.load(hazardType, size: sizeOverride ?? _currentSize),
+      onTap: () => onMarkerTapped?.call(id, hazardType),
     );
   }
 }
 
 class _MarkerEntry {
-  const _MarkerEntry({required this.position, required this.animalType});
+  const _MarkerEntry({required this.position, required this.hazardType});
   final LatLng position;
-  final AnimalType? animalType;
+  final HazardType? hazardType;
 }

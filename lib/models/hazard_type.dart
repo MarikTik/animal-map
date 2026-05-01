@@ -1,9 +1,9 @@
-/// Represents the types of animals that can be detected and displayed
+/// Represents the types of hazards that can be detected and displayed
 /// as markers on the map.
 ///
 /// Each type maps to a PNG icon asset in `assets/markers/`.
 /// The asset path and display label are derived from the enum name.
-enum AnimalType {
+enum HazardType {
   bear,
   coyote,
   deer,
@@ -23,7 +23,7 @@ enum AnimalType {
   ///
   /// Returns `null` if the name does not match any known type,
   /// enabling fallback handling by the caller.
-  static AnimalType? fromName(String name) {
+  static HazardType? fromName(String name) {
     final lower = name.toLowerCase();
     for (final type in values) {
       if (type.name == lower) return type;

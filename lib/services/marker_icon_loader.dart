@@ -1,6 +1,6 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../models/animal_type.dart';
+import '../models/hazard_type.dart';
 
 /// Abstract interface for loading marker icons.
 ///
@@ -8,10 +8,10 @@ import '../models/animal_type.dart';
 /// the concrete asset-loading mechanism. Fakes can return
 /// [BitmapDescriptor.defaultMarker] for all types in tests.
 abstract class MarkerIconLoader {
-  /// Returns a [BitmapDescriptor] for the given [animalType]
+  /// Returns a [BitmapDescriptor] for the given [hazardType]
   /// rendered at [size] logical pixels.
   ///
-  /// When [animalType] is `null` (unknown animal), returns a
+  /// When [hazardType] is `null` (unknown animal), returns a
   /// default fallback icon.
-  BitmapDescriptor load(AnimalType? animalType, {required double size});
+  BitmapDescriptor load(HazardType? hazardType, {required double size});
 }
