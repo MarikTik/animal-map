@@ -11,21 +11,27 @@ import 'marker_manager.dart';
 /// Marker IDs are monotonically increasing to guarantee uniqueness
 /// within a single session. Supports dynamic resizing of marker
 /// icons via [updateMarkerSize] for zoom-dependent scaling.
-class MarkerManagerImpl implements MarkerManager {
+class MarkerManagerImpl extends MarkerManager {
   MarkerManagerImpl({required MarkerIconLoader iconLoader})
       : _iconLoader = iconLoader;
 
   final MarkerIconLoader _iconLoader;
   final Map<String, _MarkerEntry> _entries = {};
   final Map<String, Marker> _markers = {};
+  Set<Marker>? _markersCache;
   int _nextId = 0;
   double _currentSize = MapConfig.markerSize;
 
   @override
-  MarkerTapCallback? onMarkerTapped;
+  Set<Marker> get markers {
+    if (_currentSize <= 0) return const {};
+    return _markersCache ??= _markers.values.toSet();
+  }
 
-  @override
-  Set<Marker> get markers => _currentSize > 0 ? _markers.values.toSet() : {};
+  void _invalidateCache() {
+    _markersCache = null;
+    notifyListeners();
+  }
 
   @override
   String addMarker({
@@ -33,8 +39,11 @@ class MarkerManagerImpl implements MarkerManager {
     required HazardType? hazardType,
   }) {
     final id = 'marker_${_nextId++}';
-    _entries[id] = _MarkerEntry(position: position, hazardType: hazardType);
+    final entry = _MarkerEntry(position: position, hazardType: hazardType)
+      ..builtAtSize = _bucket(_currentSize);
+    _entries[id] = entry;
     _markers[id] = _buildMarker(id, position, hazardType);
+    _invalidateCache();
     return id;
   }
 
@@ -42,18 +51,23 @@ class MarkerManagerImpl implements MarkerManager {
   void removeMarker(String markerId) {
     _entries.remove(markerId);
     _markers.remove(markerId);
+    _invalidateCache();
   }
 
   @override
   void clear() {
     _entries.clear();
     _markers.clear();
+    _invalidateCache();
   }
 
   @override
   void updateMarkerSize(double size) {
     _currentSize = size;
-    if (size <= 0) return;
+    if (size <= 0) {
+      _invalidateCache();
+      return;
+    }
     _rebuildMarkers();
   }
 
@@ -67,18 +81,26 @@ class MarkerManagerImpl implements MarkerManager {
       entry.hazardType,
       sizeOverride: _currentSize * scale,
     );
+    _invalidateCache();
   }
 
   void _rebuildMarkers() {
-    _markers.clear();
+    final bucketedSize = _bucket(_currentSize);
+    var anyRebuilt = false;
     for (final entry in _entries.entries) {
+      if (entry.value.builtAtSize == bucketedSize) continue;
       _markers[entry.key] = _buildMarker(
         entry.key,
         entry.value.position,
         entry.value.hazardType,
       );
+      entry.value.builtAtSize = bucketedSize;
+      anyRebuilt = true;
     }
+    if (anyRebuilt) _invalidateCache();
   }
+
+  static double _bucket(double size) => (size / 8).round() * 8.0;
 
   Marker _buildMarker(
     String id,
@@ -89,14 +111,15 @@ class MarkerManagerImpl implements MarkerManager {
     return Marker(
       markerId: MarkerId(id),
       position: position,
-      icon: _iconLoader.load(hazardType, size: sizeOverride ?? _currentSize),
+      icon: _iconLoader.load(hazardType, size: _bucket(sizeOverride ?? _currentSize)),
       onTap: () => onMarkerTapped?.call(id, hazardType),
     );
   }
 }
 
 class _MarkerEntry {
-  const _MarkerEntry({required this.position, required this.hazardType});
+  _MarkerEntry({required this.position, required this.hazardType});
   final LatLng position;
   final HazardType? hazardType;
+  double builtAtSize = -1;
 }

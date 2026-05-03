@@ -8,7 +8,7 @@ import 'package:animal_map/services/marker_manager.dart';
 /// Records all operations so tests can verify call counts,
 /// arguments, and marker state without depending on a real
 /// [MarkerIconLoader].
-class FakeMarkerManager implements MarkerManager {
+class FakeMarkerManager extends MarkerManager {
   /// All markers added via [addMarker], in order.
   final List<({LatLng position, HazardType? hazardType})> addedMarkers = [];
 
@@ -33,9 +33,6 @@ class FakeMarkerManager implements MarkerManager {
   /// The last scale passed to [setMarkerScale].
   double lastScale = 1.0;
 
-  @override
-  MarkerTapCallback? onMarkerTapped;
-
   final Map<String, Marker> _markers = {};
   final Map<String, HazardType?> _hazardTypes = {};
   int _nextId = 0;
@@ -56,6 +53,7 @@ class FakeMarkerManager implements MarkerManager {
       position: position,
       onTap: () => onMarkerTapped?.call(id, hazardType),
     );
+    notifyListeners();
     return id;
   }
 
@@ -63,18 +61,21 @@ class FakeMarkerManager implements MarkerManager {
   void removeMarker(String markerId) {
     removeCallCount++;
     _markers.remove(markerId);
+    notifyListeners();
   }
 
   @override
   void clear() {
     clearCallCount++;
     _markers.clear();
+    notifyListeners();
   }
 
   @override
   void updateMarkerSize(double size) {
     updateSizeCallCount++;
     lastSize = size;
+    notifyListeners();
   }
 
   @override
@@ -82,5 +83,6 @@ class FakeMarkerManager implements MarkerManager {
     scaleCallCount++;
     lastScaledId = markerId;
     lastScale = scale;
+    notifyListeners();
   }
 }

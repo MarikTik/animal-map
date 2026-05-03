@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../models/hazard_type.dart';
@@ -7,10 +8,10 @@ typedef MarkerTapCallback = void Function(String markerId, HazardType? hazardTyp
 
 /// Abstract interface for managing map markers.
 ///
-/// Provides operations to add, remove, and query markers.
-/// Implementations own the mutable marker state; the map widget
-/// reads [markers] on each build.
-abstract class MarkerManager {
+/// Mixes in [ChangeNotifier] so listeners (e.g. [ListenableBuilder]) are
+/// notified whenever the marker set changes, without requiring a full-screen
+/// setState.
+abstract class MarkerManager with ChangeNotifier {
   /// The current set of markers to display on the map.
   Set<Marker> get markers;
 
