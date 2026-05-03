@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -14,18 +13,10 @@ import '../../services/marker_manager.dart';
 /// Duration of one full grow-then-shrink pulse cycle.
 const _pulseDuration = Duration(milliseconds: 500);
 
-/// How often the pulse scale is updated (≈60 fps).
-const _pulseInterval = Duration(milliseconds: 16);
+/// Peak radius of the pulse circle in metres.
+const _pulseMaxRadius = 40.0;
 
-/// Peak scale multiplier at the top of the pulse.
-const _pulseMaxScale = 1.3;
-
-/// Main screen that displays the Google Map with animal markers.
-///
-/// Accepts injected services via constructor to enable dependency
-/// inversion and testability. Resolves the initial camera position
-/// from (1) the device's current location, (2) a previously stored
-/// location, or (3) a hardcoded fallback.
+/// Main screen that displays the Google Map with hazard markers.
 class MapScreen extends StatefulWidget {
   const MapScreen({
     super.key,
@@ -35,59 +26,56 @@ class MapScreen extends StatefulWidget {
     required this.markerManager,
   });
 
-  /// Injected permission service (interface, not concrete).
   final LocationPermissionService locationPermissionService;
-
-  /// Injected provider for the device's GPS coordinates.
   final LocationProvider locationProvider;
-
-  /// Injected store for persisting the user's last known location.
   final LocationStore locationStore;
-
-  /// Injected marker manager that owns the mutable marker set.
   final MarkerManager markerManager;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen>
+    with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   bool _myLocationEnabled = false;
   double _currentZoom = MapConfig.fallbackZoom;
-  LatLng _currentTarget = MapConfig.fallbackCenter;
 
-  /// Sentinel value so the first [_onCameraMove] always synchronises
-  /// the marker size with the actual camera zoom.
   double _lastMarkerSize = -1;
   final _random = Random();
 
-  /// Stores a resolved camera position when the map controller
-  /// isn't ready yet.
   CameraPosition? _pendingCamera;
 
-  /// Whether the FAB is active (waiting for a map tap to place a marker).
   bool _placementMode = false;
+  String? _selectedHazardLabel;
 
-  /// The animal name currently shown in the bottom info bar, or `null`.
-  String? _selectedAnimalLabel;
+  /// Position of the tapped marker driving the pulse circle.
+  LatLng? _pulsePosition;
 
-  /// Timer driving the smooth marker pulse.
-  Timer? _pulseTimer;
-
-  /// ID of the marker currently being pulsed.
-  String? _pulsingMarkerId;
+  /// Animation controller for the pulse circle.
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseRadius;
 
   @override
   void initState() {
     super.initState();
     widget.markerManager.onMarkerTapped = _onMarkerTapped;
     _resolveInitialPosition();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: _pulseDuration,
+    );
+    _pulseRadius = Tween<double>(begin: 0, end: _pulseMaxRadius).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    );
+    _pulseController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() => _pulsePosition = null);
+      }
+    });
   }
 
-  /// Determines the best initial camera position.
-  ///
-  /// Priority: current GPS location → stored location → fallback.
   Future<void> _resolveInitialPosition() async {
     final granted = await widget.locationPermissionService.request();
     setState(() {
@@ -98,23 +86,16 @@ class _MapScreenState extends State<MapScreen> {
 
     if (granted) {
       target = await widget.locationProvider.getCurrentLocation();
-      if (target != null) {
-        await widget.locationStore.save(target);
-      }
+      if (target != null) await widget.locationStore.save(target);
     }
 
     target ??= await widget.locationStore.load();
-
     if (target == null) return;
 
-    _currentTarget = target;
     _currentZoom = MapConfig.defaultZoom;
-
     final camera = CameraPosition(target: target, zoom: MapConfig.defaultZoom);
     if (_mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(camera),
-      );
+      _mapController!.animateCamera(CameraUpdate.newCameraPosition(camera));
     } else {
       _pendingCamera = camera;
     }
@@ -132,87 +113,49 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onCameraMove(CameraPosition position) {
     _currentZoom = position.zoom;
-    _currentTarget = position.target;
 
     final newSize = MapConfig.markerSizeForZoom(_currentZoom).roundToDouble();
     if (newSize != _lastMarkerSize) {
       _lastMarkerSize = newSize;
-      setState(() {
-        widget.markerManager.updateMarkerSize(newSize);
-      });
+      // No setState — MarkerManagerImpl notifies ListenableBuilder directly.
+      widget.markerManager.updateMarkerSize(newSize);
     }
   }
 
-  /// Toggles placement mode. When active, the next map tap
-  /// places a random animal marker at that location.
   void _togglePlacementMode() {
     setState(() {
       _placementMode = !_placementMode;
-      if (_placementMode) _selectedAnimalLabel = null;
+      if (_placementMode) _selectedHazardLabel = null;
     });
   }
 
-  /// Called when the user taps the map while placement mode is active.
   void _onMapTap(LatLng position) {
     if (!_placementMode) return;
 
     final types = [...HazardType.values, null];
     final type = types[_random.nextInt(types.length)];
-
-    setState(() {
-      widget.markerManager.addMarker(
-        position: position,
-        hazardType: type,
-      );
-    });
+    // No setState — MarkerManagerImpl notifies ListenableBuilder directly.
+    widget.markerManager.addMarker(position: position, hazardType: type);
   }
 
-  /// Called when any marker is tapped.
-  ///
-  /// Starts a smooth grow-then-shrink pulse using a sine curve
-  /// over [_pulseDuration], updating at [_pulseInterval].
   void _onMarkerTapped(String markerId, HazardType? hazardType) {
-    // Cancel any in-progress pulse and reset that marker.
-    _cancelPulse();
+    // Look up the marker position to anchor the pulse circle.
+    final manager = widget.markerManager;
+    final marker = manager.markers.where((m) => m.markerId.value == markerId).firstOrNull;
 
     setState(() {
-      _selectedAnimalLabel = hazardType?.label ?? 'Unknown animal';
+      _selectedHazardLabel = hazardType?.label ?? 'Unknown hazard';
+      _pulsePosition = marker?.position;
     });
 
-    _pulsingMarkerId = markerId;
-    final totalTicks = _pulseDuration.inMilliseconds ~/ _pulseInterval.inMilliseconds;
-    var tick = 0;
-
-    _pulseTimer = Timer.periodic(_pulseInterval, (_) {
-      tick++;
-      if (!mounted || tick >= totalTicks) {
-        _cancelPulse();
-        return;
-      }
-
-      // Sine curve: 0 → 1 → 0 over the duration.
-      final t = tick / totalTicks;
-      final scale = 1.0 + (_pulseMaxScale - 1.0) * sin(t * pi);
-
-      setState(() {
-        widget.markerManager.setMarkerScale(markerId, scale: scale);
-      });
-    });
-  }
-
-  /// Stops the pulse timer and resets the pulsing marker to normal.
-  void _cancelPulse() {
-    _pulseTimer?.cancel();
-    _pulseTimer = null;
-    if (_pulsingMarkerId != null && mounted) {
-      widget.markerManager.setMarkerScale(_pulsingMarkerId!, scale: 1.0);
-      _pulsingMarkerId = null;
+    if (_pulsePosition != null) {
+      _pulseController.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _cancelPulse();
+    _pulseController.dispose();
     _mapController?.dispose();
     super.dispose();
   }
@@ -221,38 +164,63 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Animal Map'),
+        title: const Text('Wild Watch'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Stack(
         children: [
-          GoogleMap(
-            onMapCreated: _onMapCreated,
-            onCameraMove: _onCameraMove,
-            onTap: _onMapTap,
-            initialCameraPosition: MapConfig.fallbackCameraPosition,
-            minMaxZoomPreference: const MinMaxZoomPreference(
-              MapConfig.minZoom,
-              MapConfig.maxZoom,
-            ),
-            markers: widget.markerManager.markers,
-            zoomControlsEnabled: true,
-            zoomGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            mapType: MapType.normal,
-            myLocationEnabled: _myLocationEnabled,
-            myLocationButtonEnabled: _myLocationEnabled,
+          AnimatedBuilder(
+            animation: _pulseRadius,
+            builder: (context, _) {
+              final circles = _pulsePosition != null
+                  ? {
+                      Circle(
+                        circleId: const CircleId('pulse'),
+                        center: _pulsePosition!,
+                        radius: _pulseRadius.value,
+                        strokeWidth: 2,
+                        strokeColor: Theme.of(context).colorScheme.primary,
+                        fillColor: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withAlpha(40),
+                      ),
+                    }
+                  : const <Circle>{};
+
+              return ListenableBuilder(
+                listenable: widget.markerManager,
+                builder: (context, _) => GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  onCameraMove: _onCameraMove,
+                  onTap: _onMapTap,
+                  initialCameraPosition: MapConfig.fallbackCameraPosition,
+                  minMaxZoomPreference: const MinMaxZoomPreference(
+                    MapConfig.minZoom,
+                    MapConfig.maxZoom,
+                  ),
+                  markers: widget.markerManager.markers,
+                  circles: circles,
+                  zoomControlsEnabled: true,
+                  zoomGesturesEnabled: true,
+                  scrollGesturesEnabled: true,
+                  rotateGesturesEnabled: true,
+                  tiltGesturesEnabled: true,
+                  mapType: MapType.normal,
+                  myLocationEnabled: _myLocationEnabled,
+                  myLocationButtonEnabled: _myLocationEnabled,
+                ),
+              );
+            },
           ),
-          if (_selectedAnimalLabel != null)
+          if (_selectedHazardLabel != null)
             Positioned(
               left: 80,
               right: 60,
               bottom: 24,
-              child: _AnimalInfoBar(
-                label: _selectedAnimalLabel!,
-                onDismiss: () => setState(() => _selectedAnimalLabel = null),
+              child: _HazardInfoBar(
+                label: _selectedHazardLabel!,
+                onDismiss: () => setState(() => _selectedHazardLabel = null),
               ),
             ),
         ],
@@ -302,8 +270,8 @@ class _PlacementFab extends StatelessWidget {
 }
 
 /// Horizontal info bar shown at the bottom when a marker is tapped.
-class _AnimalInfoBar extends StatelessWidget {
-  const _AnimalInfoBar({required this.label, required this.onDismiss});
+class _HazardInfoBar extends StatelessWidget {
+  const _HazardInfoBar({required this.label, required this.onDismiss});
 
   final String label;
   final VoidCallback onDismiss;
