@@ -126,7 +126,7 @@ void main() {
         (WidgetTester tester) async {
           fakeMarkerManager.addMarker(
             position: MapConfig.fallbackCenter,
-            animalType: null,
+            hazardType: null,
           );
 
           await tester.pumpWidget(buildSubject());
@@ -155,7 +155,7 @@ void main() {
         (WidgetTester tester) async {
           fakeMarkerManager.addMarker(
             position: MapConfig.fallbackCenter,
-            animalType: null,
+            hazardType: null,
           );
 
           await tester.pumpWidget(buildSubject());
@@ -191,7 +191,7 @@ void main() {
         (WidgetTester tester) async {
           fakeMarkerManager.addMarker(
             position: MapConfig.fallbackCenter,
-            animalType: null,
+            hazardType: null,
           );
 
           await tester.pumpWidget(buildSubject());

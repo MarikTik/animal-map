@@ -50,5 +50,27 @@ void main() {
 
       expect(identical(deer, coyote), isFalse);
     });
+
+    test('returns identical instance on repeated call with same args (cache hit)', () {
+      final first = loader.load(HazardType.deer, size: 96);
+      final second = loader.load(HazardType.deer, size: 96);
+
+      expect(identical(first, second), isTrue);
+    });
+
+    test('returns different instance for different size (cache miss)', () {
+      final a = loader.load(HazardType.deer, size: 48);
+      final b = loader.load(HazardType.deer, size: 96);
+
+      expect(identical(a, b), isFalse);
+    });
+
+    test('null hazard type always returns defaultMarker regardless of size', () {
+      final a = loader.load(null, size: 48);
+      final b = loader.load(null, size: 96);
+
+      expect(a, BitmapDescriptor.defaultMarker);
+      expect(b, BitmapDescriptor.defaultMarker);
+    });
   });
 }

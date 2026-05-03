@@ -180,7 +180,7 @@ void main() {
       expect(fakeIconLoader.loadedSizes.last, 48);
     });
 
-    test('setMarkerScale rebuilds marker at scaled size', () {
+    test('setMarkerScale rebuilds marker at bucketed scaled size', () {
       final id = manager.addMarker(
         position: const LatLng(33.68, -117.82),
         hazardType: HazardType.deer,
@@ -188,13 +188,12 @@ void main() {
 
       manager.setMarkerScale(id, scale: 1.3);
 
-      expect(
-        fakeIconLoader.loadedSizes.last,
-        closeTo(MapConfig.markerSize * 1.3, 0.01),
-      );
+      // 84 * 1.3 = 109.2 → bucketed to nearest 8 = 112.
+      final bucketed = ((MapConfig.markerSize * 1.3) / 8).round() * 8.0;
+      expect(fakeIconLoader.loadedSizes.last, bucketed);
     });
 
-    test('setMarkerScale with 1.0 restores normal size', () {
+    test('setMarkerScale with 1.0 restores to bucketed normal size', () {
       final id = manager.addMarker(
         position: const LatLng(33.68, -117.82),
         hazardType: HazardType.deer,
@@ -203,7 +202,9 @@ void main() {
       manager.setMarkerScale(id, scale: 1.3);
       manager.setMarkerScale(id, scale: 1.0);
 
-      expect(fakeIconLoader.loadedSizes.last, MapConfig.markerSize);
+      // 84 * 1.0 = 84 → bucketed to nearest 8 = 88.
+      final bucketed = (MapConfig.markerSize / 8).round() * 8.0;
+      expect(fakeIconLoader.loadedSizes.last, bucketed);
     });
 
     test('setMarkerScale with unknown ID does nothing', () {
@@ -212,6 +213,131 @@ void main() {
       manager.setMarkerScale('nonexistent', scale: 1.3);
 
       expect(fakeIconLoader.loadCallCount, loadCount);
+    });
+
+    group('skip-rebuild optimisation', () {
+      test('updateMarkerSize does not reload icon when bucketed size unchanged', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        // Both sizes round to the same 8-px bucket (48).
+        manager.updateMarkerSize(48);
+        final countAfterFirst = fakeIconLoader.loadCallCount;
+        manager.updateMarkerSize(48);
+
+        expect(fakeIconLoader.loadCallCount, countAfterFirst);
+      });
+
+      test('updateMarkerSize reloads icon when bucketed size changes', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        manager.updateMarkerSize(48);
+        final countAfterFirst = fakeIconLoader.loadCallCount;
+        manager.updateMarkerSize(56); // different bucket
+
+        expect(fakeIconLoader.loadCallCount, greaterThan(countAfterFirst));
+      });
+
+      test('markers getter returns same Set instance when nothing changed', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        final first = manager.markers;
+        final second = manager.markers;
+
+        expect(identical(first, second), isTrue);
+      });
+
+      test('markers getter returns new Set instance after mutation', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        final before = manager.markers;
+        manager.addMarker(
+          position: const LatLng(33.69, -117.83),
+          hazardType: HazardType.fox,
+        );
+        final after = manager.markers;
+
+        expect(identical(before, after), isFalse);
+      });
+    });
+
+    group('ChangeNotifier', () {
+      test('notifies listeners when a marker is added', () {
+        var notified = false;
+        manager.addListener(() => notified = true);
+
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        expect(notified, isTrue);
+      });
+
+      test('notifies listeners when a marker is removed', () {
+        final id = manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        var notified = false;
+        manager.addListener(() => notified = true);
+        manager.removeMarker(id);
+
+        expect(notified, isTrue);
+      });
+
+      test('notifies listeners when markers are cleared', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        var notified = false;
+        manager.addListener(() => notified = true);
+        manager.clear();
+
+        expect(notified, isTrue);
+      });
+
+      test('notifies listeners when marker size changes bucket', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        manager.updateMarkerSize(48);
+        var notified = false;
+        manager.addListener(() => notified = true);
+        manager.updateMarkerSize(56);
+
+        expect(notified, isTrue);
+      });
+
+      test('does not notify listeners when bucketed size is unchanged', () {
+        manager.addMarker(
+          position: const LatLng(33.68, -117.82),
+          hazardType: HazardType.deer,
+        );
+
+        manager.updateMarkerSize(48);
+        var notified = false;
+        manager.addListener(() => notified = true);
+        manager.updateMarkerSize(48);
+
+        expect(notified, isFalse);
+      });
     });
   });
 }

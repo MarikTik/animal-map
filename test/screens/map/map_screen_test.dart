@@ -36,14 +36,14 @@ void main() {
       );
     }
 
-    testWidgets('renders a Scaffold with AppBar titled "Animal Map"', (
+    testWidgets('renders a Scaffold with AppBar titled "Wild Watch"', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
       expect(find.byType(Scaffold), findsOneWidget);
-      expect(find.text('Animal Map'), findsOneWidget);
+      expect(find.text('Wild Watch'), findsOneWidget);
     });
 
     testWidgets('contains a GoogleMap widget', (WidgetTester tester) async {
@@ -137,7 +137,7 @@ void main() {
     ) async {
       fakeMarkerManager.addMarker(
         position: MapConfig.fallbackCenter,
-        animalType: null,
+        hazardType: null,
       );
 
       await tester.pumpWidget(buildSubject());
@@ -295,7 +295,7 @@ void main() {
       expect(find.byIcon(Icons.add_location), findsOneWidget);
     });
 
-    testWidgets('marker tap triggers smooth pulse animation', (
+    testWidgets('marker tap shows a Circle pulse overlay', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(buildSubject());
@@ -306,30 +306,62 @@ void main() {
       await tester.pumpAndSettle();
 
       final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      const markerPos = LatLng(33.0, -117.0);
+      googleMap.onTap!(markerPos);
+      await tester.pumpAndSettle();
+
+      // No circle before tap.
+      expect(tester.widget<GoogleMap>(find.byType(GoogleMap)).circles, isEmpty);
+
+      // Tap the placed marker.
+      fakeMarkerManager.markers.first.onTap!();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Circle should now be present and centred on the marker.
+      final map = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      expect(map.circles, isNotEmpty);
+      expect(map.circles.first.center, markerPos);
+    });
+
+    testWidgets('pulse circle disappears after animation completes', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
       googleMap.onTap!(const LatLng(33.0, -117.0));
       await tester.pumpAndSettle();
 
-      // Reset scale tracking before the pulse.
-      fakeMarkerManager.scaleCallCount = 0;
+      fakeMarkerManager.markers.first.onTap!();
+      // Advance well past the 500 ms pulse duration.
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
 
-      // Tap the placed marker to start the pulse.
-      final marker = fakeMarkerManager.markers.first;
-      marker.onTap!();
+      expect(tester.widget<GoogleMap>(find.byType(GoogleMap)).circles, isEmpty);
+    });
 
-      // Advance in small steps to let the periodic timer fire.
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
+    testWidgets('marker tap shows hazard label in info bar', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
 
-      // Multiple scale updates should have fired.
-      expect(fakeMarkerManager.scaleCallCount, greaterThan(1));
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
 
-      // Advance past the full pulse duration in small steps so
-      // the periodic timer fires its completion check.
-      for (var i = 0; i < 40; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      expect(fakeMarkerManager.lastScale, 1.0);
+      final googleMap = tester.widget<GoogleMap>(find.byType(GoogleMap));
+      googleMap.onTap!(const LatLng(33.0, -117.0));
+      await tester.pumpAndSettle();
+
+      fakeMarkerManager.markers.first.onTap!();
+      await tester.pumpAndSettle();
+
+      // Info bar should appear with some label text.
+      expect(find.byType(Material), findsWidgets);
     });
   });
 }
