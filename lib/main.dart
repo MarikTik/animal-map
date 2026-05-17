@@ -38,21 +38,34 @@ Future<void> backendHandshakeWebSocket() async {
   await channel.ready;
 
   debugPrint('Connected to $uri');
-  channel.stream.listen(
+  listenForIncidents(
+    channel.stream,
+    onIncident: (incident) => debugPrint(
+      '${_terminalGreen}Received incident: $incident$_terminalReset',
+    ),
+    onError: (error, _) => debugPrint('WebSocket error: $error'),
+    onDone: () => debugPrint('WebSocket closed'),
+  );
+}
+
+/// Decodes incoming WebSocket messages as [Incident]s and forwards them
+/// to [onIncident]. Extracted from [backendHandshakeWebSocket] so the
+/// parsing path is testable with a synthetic stream.
+StreamSubscription<dynamic> listenForIncidents(
+  Stream<dynamic> stream, {
+  required void Function(Incident) onIncident,
+  void Function(Object error, StackTrace stackTrace)? onError,
+  void Function()? onDone,
+}) {
+  return stream.listen(
     (message) {
       final jsonObject = jsonDecode(message as String);
       final incident = Incident.fromJson(
         Map<String, dynamic>.from(jsonObject as Map),
       );
-      debugPrint(
-        '${_terminalGreen}Received incident: $incident$_terminalReset',
-      );
+      onIncident(incident);
     },
-    onError: (Object error, StackTrace stackTrace) {
-      debugPrint('WebSocket error: $error');
-    },
-    onDone: () {
-      debugPrint('WebSocket closed');
-    },
+    onError: onError,
+    onDone: onDone,
   );
 }
