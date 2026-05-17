@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'app.dart';
-import 'models/incident.dart';
+import 'services/incident_socket_service.dart';
+import 'services/incident_socket_service_impl.dart';
 
 const _terminalGreen = '\x1B[32m';
 const _terminalReset = '\x1B[0m';
@@ -17,8 +16,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   _initializeMapRenderer();
   runApp(const AnimalMapApp());
-
-  unawaited(backendHandshakeWebSocket());
+  unawaited(_startIncidentSocket(IncidentSocketServiceImpl()));
 }
 
 /// Ensures the Android map renderer is explicitly set.
@@ -31,41 +29,18 @@ void _initializeMapRenderer() {
   }
 }
 
-Future<void> backendHandshakeWebSocket() async {
-  final uri = Uri.parse('wss://smart-wild.onrender.com/handshake');
-
-  final channel = WebSocketChannel.connect(uri);
-  await channel.ready;
-
-  debugPrint('Connected to $uri');
-  listenForIncidents(
-    channel.stream,
-    onIncident: (incident) => debugPrint(
+/// Connects [service] and logs every received incident.
+///
+/// Logging is the only consumer for now; future work will route the
+/// stream into MarkerManager.
+Future<void> _startIncidentSocket(IncidentSocketService service) async {
+  await service.connect();
+  service.incidents.listen(
+    (incident) => debugPrint(
       '${_terminalGreen}Received incident: $incident$_terminalReset',
     ),
-    onError: (error, _) => debugPrint('WebSocket error: $error'),
-    onDone: () => debugPrint('WebSocket closed'),
-  );
-}
-
-/// Decodes incoming WebSocket messages as [Incident]s and forwards them
-/// to [onIncident]. Extracted from [backendHandshakeWebSocket] so the
-/// parsing path is testable with a synthetic stream.
-StreamSubscription<dynamic> listenForIncidents(
-  Stream<dynamic> stream, {
-  required void Function(Incident) onIncident,
-  void Function(Object error, StackTrace stackTrace)? onError,
-  void Function()? onDone,
-}) {
-  return stream.listen(
-    (message) {
-      final jsonObject = jsonDecode(message as String);
-      final incident = Incident.fromJson(
-        Map<String, dynamic>.from(jsonObject as Map),
-      );
-      onIncident(incident);
-    },
-    onError: onError,
-    onDone: onDone,
+    onError: (Object error, StackTrace _) =>
+        debugPrint('Incident socket error: $error'),
+    onDone: () => debugPrint('Incident socket closed'),
   );
 }
