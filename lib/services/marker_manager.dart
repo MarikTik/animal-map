@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../models/hazard_type.dart';
+import '../models/incident_type.dart';
 
 /// Signature for callbacks when a marker is tapped.
-typedef MarkerTapCallback = void Function(String markerId, HazardType? hazardType);
+typedef MarkerTapCallback = void Function(String markerId, IncidentType? incidentType);
 
 /// Abstract interface for managing map markers.
 ///
@@ -18,13 +18,13 @@ abstract class MarkerManager with ChangeNotifier {
   /// Callback invoked when a marker is tapped.
   MarkerTapCallback? onMarkerTapped;
 
-  /// Creates a marker at [position] with an icon for [hazardType].
+  /// Creates a marker at [position] with an icon for [incidentType].
   ///
-  /// Pass `null` for [hazardType] to use the fallback icon.
+  /// Pass `null` for [incidentType] to use the fallback icon.
   /// Returns the unique marker ID assigned to the new marker.
   String addMarker({
     required LatLng position,
-    required HazardType? hazardType,
+    required IncidentType? incidentType,
   });
 
   /// Removes the marker with the given [markerId].

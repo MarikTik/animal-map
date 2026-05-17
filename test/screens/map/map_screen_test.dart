@@ -137,7 +137,7 @@ void main() {
     ) async {
       fakeMarkerManager.addMarker(
         position: MapConfig.fallbackCenter,
-        hazardType: null,
+        incidentType: null,
       );
 
       await tester.pumpWidget(buildSubject());

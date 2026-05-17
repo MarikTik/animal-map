@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../config/map_config.dart';
-import '../../models/hazard_type.dart';
+import '../../models/incident_type.dart';
 import '../../services/location_permission_service.dart';
 import '../../services/location_provider.dart';
 import '../../services/location_store.dart';
@@ -132,19 +132,19 @@ class _MapScreenState extends State<MapScreen>
   void _onMapTap(LatLng position) {
     if (!_placementMode) return;
 
-    final types = [...HazardType.values, null];
+    final types = [...IncidentType.values, null];
     final type = types[_random.nextInt(types.length)];
     // No setState — MarkerManagerImpl notifies ListenableBuilder directly.
-    widget.markerManager.addMarker(position: position, hazardType: type);
+    widget.markerManager.addMarker(position: position, incidentType: type);
   }
 
-  void _onMarkerTapped(String markerId, HazardType? hazardType) {
+  void _onMarkerTapped(String markerId, IncidentType? incidentType) {
     // Look up the marker position to anchor the pulse circle.
     final manager = widget.markerManager;
     final marker = manager.markers.where((m) => m.markerId.value == markerId).firstOrNull;
 
     setState(() {
-      _selectedHazardLabel = hazardType?.label ?? 'Unknown hazard';
+      _selectedHazardLabel = incidentType?.label ?? 'Unknown hazard';
       _pulsePosition = marker?.position;
     });
 
