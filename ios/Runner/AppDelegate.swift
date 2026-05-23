@@ -1,5 +1,7 @@
 import Flutter
+#if canImport(GoogleMaps)
 import GoogleMaps
+#endif
 import UIKit
 
 @main
@@ -15,7 +17,11 @@ import UIKit
       fatalError("Missing GOOGLE_MAPS_API_KEY. Define it in ios/Flutter/MapsApiKey.xcconfig.")
     }
 
+#if canImport(GoogleMaps)
     GMSServices.provideAPIKey(apiKey)
+#else
+    NSLog("GoogleMaps SDK not available at compile time. Skipping GMSServices.provideAPIKey(_:) call.")
+#endif
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
