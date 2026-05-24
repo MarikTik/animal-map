@@ -5,8 +5,12 @@ import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 
 import 'app.dart';
-import 'services/incident_socket_service.dart';
+import 'config/map_config.dart';
+import 'filters/proximity_filter.dart';
+import 'services/incident_marker_sink.dart';
 import 'services/incident_socket_service_impl.dart';
+import 'services/marker_icon_loader_impl.dart';
+import 'services/marker_manager_impl.dart';
 
 const _terminalGreen = '\x1B[32m';
 const _terminalReset = '\x1B[0m';
@@ -15,8 +19,13 @@ const _terminalReset = '\x1B[0m';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   _initializeMapRenderer();
-  runApp(const AnimalMapApp());
-  unawaited(_startIncidentSocket(IncidentSocketServiceImpl()));
+
+  // Build shared services that need to be wired together before the UI starts.
+  final markerManager = MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl());
+
+  runApp(AnimalMapApp(markerManager: markerManager));
+
+  unawaited(_startIncidentPipeline(markerManager));
 }
 
 /// Ensures the Android map renderer is explicitly set.
@@ -29,13 +38,24 @@ void _initializeMapRenderer() {
   }
 }
 
-/// Connects [service] and logs every received incident.
+/// Connects the incident socket and pipes filtered events into [markerManager].
 ///
-/// Logging is the only consumer for now; future work will route the
-/// stream into MarkerManager.
-Future<void> _startIncidentSocket(IncidentSocketService service) async {
-  await service.connect();
-  service.incidents.listen(
+/// The proximity filter starts centred on [MapConfig.fallbackCenter]; it can
+/// be updated later (e.g. once the user's location is known) via
+/// [ProximityFilter.updateReferencePoint].
+Future<void> _startIncidentPipeline(MarkerManagerImpl markerManager) async {
+  final socketService = IncidentSocketServiceImpl();
+  final filter = ProximityFilter(referencePoint: MapConfig.fallbackCenter);
+  final sink = IncidentMarkerSink(
+    socketService: socketService,
+    filter: filter,
+    markerManager: markerManager,
+  );
+
+  await socketService.connect();
+
+  // Debug logging — remove once the UI surfaces incidents visually.
+  socketService.incidents.listen(
     (incident) => debugPrint(
       '${_terminalGreen}Received incident: $incident$_terminalReset',
     ),
@@ -43,4 +63,6 @@ Future<void> _startIncidentSocket(IncidentSocketService service) async {
         debugPrint('Incident socket error: $error'),
     onDone: () => debugPrint('Incident socket closed'),
   );
+
+  sink.attach();
 }
