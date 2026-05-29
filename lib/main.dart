@@ -5,12 +5,14 @@ import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 
 import 'app.dart';
+import 'config/app_config.dart';
 import 'config/map_config.dart';
 import 'filters/proximity_filter.dart';
 import 'services/incident_marker_sink.dart';
 import 'services/incident_socket_service_impl.dart';
 import 'services/marker_icon_loader_impl.dart';
 import 'services/marker_manager_impl.dart';
+import 'services/places_service.dart';
 
 const _terminalGreen = '\x1B[32m';
 const _terminalReset = '\x1B[0m';
@@ -22,8 +24,9 @@ void main() {
 
   // Build shared services that need to be wired together before the UI starts.
   final markerManager = MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl());
+  final placesService = PlacesService(apiKey: AppConfig.mapsApiKey);
 
-  runApp(AnimalMapApp(markerManager: markerManager));
+  runApp(AnimalMapApp(markerManager: markerManager, placesService: placesService));
 
   unawaited(_startIncidentPipeline(markerManager));
 }

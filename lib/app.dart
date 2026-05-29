@@ -10,6 +10,7 @@ import 'services/location_store_stub.dart';
 import 'services/marker_icon_loader_impl.dart';
 import 'services/marker_manager.dart';
 import 'services/marker_manager_impl.dart';
+import 'services/places_service.dart';
 
 /// Root application widget.
 ///
@@ -26,15 +27,18 @@ class AnimalMapApp extends StatelessWidget {
     LocationProvider? locationProvider,
     LocationStore? locationStore,
     MarkerManager? markerManager,
+    PlacesService? placesService,
   })  : _locationPermissionService = locationPermissionService,
         _locationProvider = locationProvider,
         _locationStore = locationStore,
-        _markerManager = markerManager;
+        _markerManager = markerManager,
+        _placesService = placesService;
 
   final LocationPermissionService? _locationPermissionService;
   final LocationProvider? _locationProvider;
   final LocationStore? _locationStore;
   final MarkerManager? _markerManager;
+  final PlacesService? _placesService;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +54,7 @@ class AnimalMapApp extends StatelessWidget {
         locationStore: _locationStore ?? LocationStoreStub(),
         markerManager: _markerManager ??
             MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl()),
+        placesService: _placesService,
       ),
     );
   }

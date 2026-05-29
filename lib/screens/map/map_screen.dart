@@ -9,6 +9,8 @@ import '../../services/location_permission_service.dart';
 import '../../services/location_provider.dart';
 import '../../services/location_store.dart';
 import '../../services/marker_manager.dart';
+import '../../services/places_service.dart';
+import 'place_search_delegate.dart';
 
 /// Duration of one full grow-then-shrink pulse cycle.
 const _pulseDuration = Duration(milliseconds: 500);
@@ -24,12 +26,18 @@ class MapScreen extends StatefulWidget {
     required this.locationProvider,
     required this.locationStore,
     required this.markerManager,
+    this.placesService,
   });
 
   final LocationPermissionService locationPermissionService;
   final LocationProvider locationProvider;
   final LocationStore locationStore;
   final MarkerManager markerManager;
+
+  /// When provided, a search icon appears in the AppBar that lets the user
+  /// find and navigate to any location via the Places Autocomplete API.
+  /// Pass `null` to hide the search affordance (e.g. in tests).
+  final PlacesService? placesService;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -153,6 +161,18 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
+  Future<void> _onSearchTapped() async {
+    final latLng = await showSearch<LatLng?>(
+      context: context,
+      delegate: PlaceSearchDelegate(placesService: widget.placesService!),
+    );
+    if (latLng == null || !mounted) return;
+
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(latLng, MapConfig.defaultZoom),
+    );
+  }
+
   @override
   void dispose() {
     _pulseController.dispose();
@@ -166,6 +186,14 @@ class _MapScreenState extends State<MapScreen>
       appBar: AppBar(
         title: const Text('Wild Watch'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          if (widget.placesService != null)
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Search location',
+              onPressed: _onSearchTapped,
+            ),
+        ],
       ),
       body: Stack(
         children: [
