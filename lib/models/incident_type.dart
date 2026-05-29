@@ -1,17 +1,18 @@
 /// The category of a detected road incident.
 ///
 /// Carries both the wire format (`jsonValue`) used when decoding the
-/// backend payload and an optional `assetPath` used to render the
-/// marker icon. Types without an asset path fall back to the default
-/// marker.
+/// backend payload, an optional `assetPath` used to render the marker icon,
+/// and an `alertPhrase` spoken via TTS when the incident is detected nearby.
 enum IncidentType {
-  animalOnRoad('animal_on_road', assetPath: 'assets/markers/deer.png'),
-  personOnRoad('person_on_road'),
-  stoppedVehicle('stopped_vehicle'),
-  roadObstruction('road_obstruction'),
-  unknown('unknown');
+  animalOnRoad('animal_on_road',
+      assetPath: 'assets/markers/deer.png',
+      alertPhrase: 'Animal on the road ahead'),
+  personOnRoad('person_on_road', alertPhrase: 'Person on the road ahead'),
+  stoppedVehicle('stopped_vehicle', alertPhrase: 'Stopped vehicle ahead'),
+  roadObstruction('road_obstruction', alertPhrase: 'Road obstruction ahead'),
+  unknown('unknown', alertPhrase: 'Hazard ahead');
 
-  const IncidentType(this.jsonValue, {this.assetPath});
+  const IncidentType(this.jsonValue, {this.assetPath, required this.alertPhrase});
 
   /// JSON-wire identifier as used in the backend incident contract.
   final String jsonValue;
@@ -19,6 +20,9 @@ enum IncidentType {
   /// Path to the marker icon asset, or `null` if no icon is mapped
   /// (caller should fall back to the default marker).
   final String? assetPath;
+
+  /// Short spoken phrase announced via TTS when this incident type is detected.
+  final String alertPhrase;
 
   /// Human-readable label derived from [jsonValue] — e.g.
   /// `animal_on_road` → `Animal on road`. Used in UI surfaces like

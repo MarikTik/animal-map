@@ -7,6 +7,7 @@ import 'package:animal_map/services/incident_marker_sink.dart';
 
 import '../fakes/fake_incident_socket_service.dart';
 import '../fakes/fake_marker_manager.dart';
+import '../fakes/fake_tts_service.dart';
 import '../fakes/incident_factory.dart';
 
 /// A pass-through [IncidentFilter] stub — all incidents pass.
@@ -153,6 +154,75 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(markerManager.addedMarkers, isEmpty);
+    });
+
+    group('TTS', () {
+      late FakeTtsService tts;
+
+      setUp(() => tts = FakeTtsService());
+
+      IncidentMarkerSink buildSinkWithTts({IncidentFilter? filter}) {
+        return IncidentMarkerSink(
+          socketService: socketService,
+          filter: filter ?? _AllowAll(),
+          markerManager: markerManager,
+          ttsService: tts,
+        );
+      }
+
+      test('speaks the alertPhrase for a passing incident', () async {
+        final sink = buildSinkWithTts();
+        sink.attach();
+
+        socketService.emit(makeIncident(type: IncidentType.animalOnRoad));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(tts.spoken, ['Animal on the road ahead']);
+        sink.detach();
+      });
+
+      test('speaks the correct phrase for each incident type', () async {
+        for (final type in IncidentType.values) {
+          final localSocket = FakeIncidentSocketService();
+          final localTts = FakeTtsService();
+          final sink = IncidentMarkerSink(
+            socketService: localSocket,
+            filter: _AllowAll(),
+            markerManager: markerManager,
+            ttsService: localTts,
+          );
+          sink.attach();
+
+          localSocket.emit(makeIncident(type: type));
+          await Future<void>.delayed(Duration.zero);
+
+          expect(localTts.spoken, [type.alertPhrase], reason: 'failed for $type');
+          sink.detach();
+        }
+      });
+
+      test('does not speak when incident is filtered out', () async {
+        final sink = buildSinkWithTts(filter: _RejectAll());
+        sink.attach();
+
+        socketService.emit(makeIncident());
+        await Future<void>.delayed(Duration.zero);
+
+        expect(tts.spoken, isEmpty);
+        sink.detach();
+      });
+
+      test('no TTS when ttsService is null', () async {
+        // buildSink() has no ttsService — just confirm it does not throw.
+        final sink = buildSink();
+        sink.attach();
+
+        socketService.emit(makeIncident());
+        await Future<void>.delayed(Duration.zero);
+
+        expect(markerManager.addedMarkers.length, 1);
+        sink.detach();
+      });
     });
   });
 }

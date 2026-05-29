@@ -13,6 +13,7 @@ import 'services/incident_socket_service_impl.dart';
 import 'services/marker_icon_loader_impl.dart';
 import 'services/marker_manager_impl.dart';
 import 'services/places_service.dart';
+import 'services/tts_service_impl.dart';
 
 const _terminalGreen = '\x1B[32m';
 const _terminalReset = '\x1B[0m';
@@ -22,7 +23,6 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   _initializeMapRenderer();
 
-  // Build shared services that need to be wired together before the UI starts.
   final markerManager = MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl());
   final placesService = PlacesService(apiKey: AppConfig.mapsApiKey);
 
@@ -32,8 +32,6 @@ void main() {
 }
 
 /// Ensures the Android map renderer is explicitly set.
-///
-/// Uses the latest (Vulkan/cloud) renderer for better tile loading support.
 void _initializeMapRenderer() {
   final platform = GoogleMapsFlutterPlatform.instance;
   if (platform is GoogleMapsFlutterAndroid) {
@@ -41,18 +39,17 @@ void _initializeMapRenderer() {
   }
 }
 
-/// Connects the incident socket and pipes filtered events into [markerManager].
-///
-/// The proximity filter starts centred on [MapConfig.fallbackCenter]; it can
-/// be updated later (e.g. once the user's location is known) via
-/// [ProximityFilter.updateReferencePoint].
+/// Connects the incident socket, attaches a proximity filter, and pipes
+/// filtered events into [markerManager] with TTS announcements.
 Future<void> _startIncidentPipeline(MarkerManagerImpl markerManager) async {
   final socketService = IncidentSocketServiceImpl();
   final filter = ProximityFilter(referencePoint: MapConfig.fallbackCenter);
+  final tts = TtsServiceImpl();
   final sink = IncidentMarkerSink(
     socketService: socketService,
     filter: filter,
     markerManager: markerManager,
+    ttsService: tts,
   );
 
   await socketService.connect();

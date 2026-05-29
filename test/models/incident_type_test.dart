@@ -49,5 +49,21 @@ void main() {
         expect(IncidentType.unknown.label, 'Unknown');
       });
     });
+
+    group('alertPhrase', () {
+      test('every type has a non-empty alert phrase', () {
+        for (final type in IncidentType.values) {
+          expect(type.alertPhrase, isNotEmpty, reason: 'failed for $type');
+        }
+      });
+
+      test('each type carries its expected spoken phrase', () {
+        expect(IncidentType.animalOnRoad.alertPhrase, 'Animal on the road ahead');
+        expect(IncidentType.personOnRoad.alertPhrase, 'Person on the road ahead');
+        expect(IncidentType.stoppedVehicle.alertPhrase, 'Stopped vehicle ahead');
+        expect(IncidentType.roadObstruction.alertPhrase, 'Road obstruction ahead');
+        expect(IncidentType.unknown.alertPhrase, 'Hazard ahead');
+      });
+    });
   });
 }
