@@ -32,6 +32,8 @@ class PlacesService {
   /// Returns up to 5 autocomplete suggestions for [query].
   ///
   /// Returns an empty list on network error or when [query] is blank.
+  /// Logs the Places API status when it is not `OK`/`ZERO_RESULTS` so
+  /// misconfigurations (e.g. `REQUEST_DENIED`) are visible during debugging.
   Future<List<PlaceSuggestion>> autocomplete(String query) async {
     if (query.trim().isEmpty) return [];
 
@@ -42,9 +44,22 @@ class PlacesService {
 
     try {
       final response = await _client.get(uri);
-      if (response.statusCode != 200) return [];
+      if (response.statusCode != 200) {
+        // ignore: avoid_print
+        print('Places autocomplete HTTP ${response.statusCode}: ${response.body}');
+        return [];
+      }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final status = body['status'] as String?;
+      if (status != 'OK' && status != 'ZERO_RESULTS') {
+        // REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST, etc.
+        // ignore: avoid_print
+        print('Places autocomplete status=$status '
+            'error=${body['error_message']}');
+        return [];
+      }
+
       final predictions = body['predictions'] as List<dynamic>? ?? [];
 
       return predictions
@@ -54,7 +69,9 @@ class PlacesService {
                 description: p['description'] as String,
               ))
           .toList();
-    } catch (_) {
+    } catch (e) {
+      // ignore: avoid_print
+      print('Places autocomplete error: $e');
       return [];
     }
   }

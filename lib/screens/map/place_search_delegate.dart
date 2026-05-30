@@ -12,6 +12,20 @@ class PlaceSearchDelegate extends SearchDelegate<LatLng?> {
 
   List<PlaceSuggestion> _suggestions = [];
 
+  /// The query string the cached [_pendingFuture] was issued for, so rebuilds
+  /// of [buildSuggestions] reuse the in-flight request instead of firing a
+  /// fresh HTTP call on every frame.
+  String? _futureQuery;
+  Future<List<PlaceSuggestion>>? _pendingFuture;
+
+  Future<List<PlaceSuggestion>> _suggestionsFor(String query) {
+    if (query != _futureQuery || _pendingFuture == null) {
+      _futureQuery = query;
+      _pendingFuture = placesService.autocomplete(query);
+    }
+    return _pendingFuture!;
+  }
+
   @override
   String get searchFieldLabel => 'Search location…';
 
@@ -46,18 +60,22 @@ class PlaceSearchDelegate extends SearchDelegate<LatLng?> {
   @override
   Widget buildSuggestions(BuildContext context) {
     return FutureBuilder<List<PlaceSuggestion>>(
-      future: placesService.autocomplete(query),
+      future: _suggestionsFor(query),
       builder: (context, snapshot) {
-        _suggestions = snapshot.data ?? _suggestions;
+        if (query.isEmpty) {
+          return const Center(child: Text('Type to search for a location'));
+        }
+
+        // While the request for the current query is in flight, show a
+        // spinner rather than stale results or a premature "No results".
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        _suggestions = snapshot.data ?? const [];
 
         if (_suggestions.isEmpty) {
-          return Center(
-            child: query.isEmpty
-                ? const Text('Type to search for a location')
-                : snapshot.connectionState == ConnectionState.waiting
-                    ? const CircularProgressIndicator()
-                    : const Text('No results'),
-          );
+          return const Center(child: Text('No results'));
         }
 
         return ListView.builder(
