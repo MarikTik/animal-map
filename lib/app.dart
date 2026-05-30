@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'screens/map/map_screen.dart';
 import 'services/directions_service.dart';
@@ -31,13 +32,15 @@ class AnimalMapApp extends StatelessWidget {
     PlacesService? placesService,
     DirectionsService? directionsService,
     Future<void> Function()? onInjectTestIncident,
+    void Function(LatLng position)? onPlaceTestIncident,
   })  : _locationPermissionService = locationPermissionService,
         _locationProvider = locationProvider,
         _locationStore = locationStore,
         _markerManager = markerManager,
         _placesService = placesService,
         _directionsService = directionsService,
-        _onInjectTestIncident = onInjectTestIncident;
+        _onInjectTestIncident = onInjectTestIncident,
+        _onPlaceTestIncident = onPlaceTestIncident;
 
   final LocationPermissionService? _locationPermissionService;
   final LocationProvider? _locationProvider;
@@ -46,6 +49,7 @@ class AnimalMapApp extends StatelessWidget {
   final PlacesService? _placesService;
   final DirectionsService? _directionsService;
   final Future<void> Function()? _onInjectTestIncident;
+  final void Function(LatLng position)? _onPlaceTestIncident;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +68,7 @@ class AnimalMapApp extends StatelessWidget {
         placesService: _placesService,
         directionsService: _directionsService,
         onInjectTestIncident: _onInjectTestIncident,
+        onPlaceTestIncident: _onPlaceTestIncident,
       ),
     );
   }

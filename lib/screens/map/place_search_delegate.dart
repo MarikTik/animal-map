@@ -75,7 +75,18 @@ class PlaceSearchDelegate extends SearchDelegate<LatLng?> {
         _suggestions = snapshot.data ?? const [];
 
         if (_suggestions.isEmpty) {
-          return const Center(child: Text('No results'));
+          // Surface the real API status (REQUEST_DENIED, etc.) so failures are
+          // diagnosable on-device instead of a bare "No results".
+          final status = placesService.lastStatus;
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                status == null ? 'No results' : 'Search error\n$status',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
         }
 
         return ListView.builder(

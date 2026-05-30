@@ -11,6 +11,21 @@ void main() {
   group('DebugIncidentFactory', () {
     const here = LatLng(32.88, -117.23);
 
+    test('at() places the incident exactly at the given position', () {
+      final factory = DebugIncidentFactory();
+      final incident = factory.at(here);
+
+      expect(incident.location.latitude, here.latitude);
+      expect(incident.location.longitude, here.longitude);
+    });
+
+    test('at() always uses a type with a non-empty alert phrase', () {
+      final factory = DebugIncidentFactory();
+      for (var i = 0; i < 20; i++) {
+        expect(factory.at(here).type.alertPhrase, isNotEmpty);
+      }
+    });
+
     test('places the incident close to the reference point', () {
       final factory = DebugIncidentFactory();
       final incident = factory.near(here, offsetMeters: 250);

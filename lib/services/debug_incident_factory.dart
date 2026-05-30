@@ -17,11 +17,14 @@ class DebugIncidentFactory {
   /// Creates an incident roughly [offsetMeters] north-ish of [near], with a
   /// random [IncidentType].
   Incident near(LatLng near, {double offsetMeters = 250}) {
-    final type = IncidentType
-        .values[_random.nextInt(IncidentType.values.length)];
-
-    // Small offset so it lands near the user but not exactly on them.
     final dLat = offsetMeters / _metersPerDegLat;
+    return at(LatLng(near.latitude + dLat, near.longitude));
+  }
+
+  /// Creates an incident exactly at [position] with a random [IncidentType].
+  Incident at(LatLng position) {
+    final type =
+        IncidentType.values[_random.nextInt(IncidentType.values.length)];
     final now = DateTime.now();
 
     return Incident(
@@ -30,8 +33,8 @@ class DebugIncidentFactory {
       occurredAt: now,
       reportedAt: now,
       location: IncidentLocation(
-        latitude: near.latitude + dLat,
-        longitude: near.longitude,
+        latitude: position.latitude,
+        longitude: position.longitude,
         roadName: 'Demo Road',
         direction: null,
         mileMarker: null,

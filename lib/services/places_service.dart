@@ -24,6 +24,10 @@ class PlacesService {
   final String apiKey;
   final http.Client _client;
 
+  /// The status / error of the most recent [autocomplete] call, for surfacing
+  /// in the UI during debugging. `null` after a successful call with results.
+  String? lastStatus;
+
   static const _autocompleteUrl =
       'https://maps.googleapis.com/maps/api/place/autocomplete/json';
   static const _detailsUrl =
@@ -45,6 +49,7 @@ class PlacesService {
     try {
       final response = await _client.get(uri);
       if (response.statusCode != 200) {
+        lastStatus = 'HTTP ${response.statusCode}';
         // ignore: avoid_print
         print('Places autocomplete HTTP ${response.statusCode}: ${response.body}');
         return [];
@@ -54,12 +59,14 @@ class PlacesService {
       final status = body['status'] as String?;
       if (status != 'OK' && status != 'ZERO_RESULTS') {
         // REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST, etc.
+        lastStatus = '$status: ${body['error_message'] ?? ''}'.trim();
         // ignore: avoid_print
         print('Places autocomplete status=$status '
             'error=${body['error_message']}');
         return [];
       }
 
+      lastStatus = null;
       final predictions = body['predictions'] as List<dynamic>? ?? [];
 
       return predictions
@@ -70,6 +77,7 @@ class PlacesService {
               ))
           .toList();
     } catch (e) {
+      lastStatus = 'Network error: $e';
       // ignore: avoid_print
       print('Places autocomplete error: $e');
       return [];

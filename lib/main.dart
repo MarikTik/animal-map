@@ -48,11 +48,20 @@ void main() {
     socketService.inject(debugFactory.near(here));
   }
 
+  // Placing a marker on the map injects an incident at that exact spot through
+  // the real pipeline, so it drops a marker AND fires the voice alert. The
+  // filter is re-centred on the tap so the incident always passes proximity.
+  void placeTestIncident(LatLng position) {
+    filter.updateReferencePoint(position);
+    socketService.inject(debugFactory.at(position));
+  }
+
   runApp(AnimalMapApp(
     markerManager: markerManager,
     placesService: placesService,
     directionsService: directionsService,
     onInjectTestIncident: injectTestIncident,
+    onPlaceTestIncident: placeTestIncident,
   ));
 
   unawaited(_startIncidentPipeline(
@@ -85,9 +94,13 @@ Future<void> _startIncidentPipeline({
     ttsService: tts,
   );
 
-  await socketService.connect();
+  // Attach the sink and debug log to the broadcast stream FIRST. These do not
+  // require the socket to be connected — they listen to the in-memory stream,
+  // which also carries debug-injected incidents. Attaching before connect()
+  // means a slow or failing socket can never prevent injected incidents (and
+  // their TTS) from being processed.
+  sink.attach();
 
-  // Debug logging — remove once the demo is finalised.
   socketService.incidents.listen(
     (incident) => debugPrint(
       '${_terminalGreen}Received incident: $incident$_terminalReset',
@@ -97,5 +110,11 @@ Future<void> _startIncidentPipeline({
     onDone: () => debugPrint('Incident socket closed'),
   );
 
-  sink.attach();
+  // Connect the live socket. Failure here (e.g. server asleep) is logged but
+  // does not stop the pipeline — injected incidents still work.
+  try {
+    await socketService.connect();
+  } catch (e) {
+    debugPrint('Incident socket connect failed: $e');
+  }
 }

@@ -30,6 +30,7 @@ class MapScreen extends StatefulWidget {
     this.placesService,
     this.directionsService,
     this.onInjectTestIncident,
+    this.onPlaceTestIncident,
   });
 
   final LocationPermissionService locationPermissionService;
@@ -51,6 +52,12 @@ class MapScreen extends StatefulWidget {
   /// user's current position through the real incident pipeline (socket →
   /// filter → TTS + overlay). Pass `null` to hide it (e.g. in tests).
   final Future<void> Function()? onInjectTestIncident;
+
+  /// When provided, tapping the map in placement mode injects an incident at
+  /// the tapped position through the real incident pipeline (so it drops a
+  /// marker AND fires the voice alert). Pass `null` to fall back to a direct
+  /// marker placement with no alert (e.g. in tests).
+  final void Function(LatLng position)? onPlaceTestIncident;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -155,6 +162,15 @@ class _MapScreenState extends State<MapScreen>
 
   void _onMapTap(LatLng position) {
     if (!_placementMode) return;
+
+    // Prefer routing through the real incident pipeline so placing a marker
+    // also fires the proximity filter + TTS voice alert, exactly like a real
+    // incident. Falls back to a direct (silent) marker when no pipeline hook
+    // is provided (e.g. in widget tests).
+    if (widget.onPlaceTestIncident != null) {
+      widget.onPlaceTestIncident!(position);
+      return;
+    }
 
     final types = [...IncidentType.values, null];
     final type = types[_random.nextInt(types.length)];
