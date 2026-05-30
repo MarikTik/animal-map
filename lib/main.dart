@@ -9,6 +9,7 @@ import 'config/app_config.dart';
 import 'config/map_config.dart';
 import 'filters/proximity_filter.dart';
 import 'overlay/incident_overlay.dart';
+import 'services/debug_incident_factory.dart';
 import 'services/drive_session.dart';
 import 'services/incident_marker_sink.dart';
 import 'services/incident_socket_service_impl.dart';
@@ -39,6 +40,7 @@ void main() {
   final markerManager = MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl());
   final placesService = PlacesService(apiKey: AppConfig.mapsApiKey);
   final locationProvider = LocationProviderImpl();
+  final socketService = IncidentSocketServiceImpl();
 
   // Shared filter — its reference point is updated live by the DriveSession.
   final filter = ProximityFilter(referencePoint: MapConfig.fallbackCenter);
@@ -50,13 +52,28 @@ void main() {
     proximityFilter: filter,
   );
 
+  // Debug demo trigger: fabricate an incident near the user's live position
+  // and push it through the real socket stream so it is filtered, spoken, and
+  // shown in the overlay exactly like a server incident.
+  final debugFactory = DebugIncidentFactory();
+  Future<void> injectTestIncident() async {
+    final here = await locationProvider.getCurrentLocation() ??
+        MapConfig.fallbackCenter;
+    // Re-centre the filter on the current position so the injected incident
+    // passes the proximity check even when no drive is active yet.
+    filter.updateReferencePoint(here);
+    socketService.inject(debugFactory.near(here));
+  }
+
   runApp(AnimalMapApp(
     markerManager: markerManager,
     placesService: placesService,
     driveSession: driveSession,
+    onInjectTestIncident: injectTestIncident,
   ));
 
   unawaited(_startIncidentPipeline(
+    socketService: socketService,
     markerManager: markerManager,
     filter: filter,
     driveSession: driveSession,
@@ -74,11 +91,11 @@ void _initializeMapRenderer() {
 /// Connects the incident socket and pipes filtered events into the marker
 /// manager (TTS announcement) and the overlay banner (via the drive session).
 Future<void> _startIncidentPipeline({
+  required IncidentSocketServiceImpl socketService,
   required MarkerManagerImpl markerManager,
   required ProximityFilter filter,
   required DriveSession driveSession,
 }) async {
-  final socketService = IncidentSocketServiceImpl();
   final tts = TtsServiceImpl();
   final sink = IncidentMarkerSink(
     socketService: socketService,

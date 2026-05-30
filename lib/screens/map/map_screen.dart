@@ -29,6 +29,7 @@ class MapScreen extends StatefulWidget {
     required this.markerManager,
     this.placesService,
     this.driveSession,
+    this.onInjectTestIncident,
   });
 
   final LocationPermissionService locationPermissionService;
@@ -45,6 +46,11 @@ class MapScreen extends StatefulWidget {
   /// launching external Google Maps navigation with the incident overlay.
   /// Pass `null` to keep search as in-app camera movement only (e.g. tests).
   final DriveSession? driveSession;
+
+  /// When provided, a debug action injects a synthetic incident near the
+  /// user's current position through the real incident pipeline (socket →
+  /// filter → TTS + overlay). Pass `null` to hide it (e.g. in tests).
+  final Future<void> Function()? onInjectTestIncident;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -241,6 +247,12 @@ class _MapScreenState extends State<MapScreen>
         title: const Text('Wild Watch'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          if (widget.onInjectTestIncident != null)
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              tooltip: 'Inject test incident near me',
+              onPressed: () => widget.onInjectTestIncident!(),
+            ),
           if (widget.placesService != null)
             IconButton(
               icon: const Icon(Icons.search),

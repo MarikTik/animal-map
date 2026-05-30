@@ -30,12 +30,14 @@ class AnimalMapApp extends StatelessWidget {
     MarkerManager? markerManager,
     PlacesService? placesService,
     DriveSession? driveSession,
+    Future<void> Function()? onInjectTestIncident,
   })  : _locationPermissionService = locationPermissionService,
         _locationProvider = locationProvider,
         _locationStore = locationStore,
         _markerManager = markerManager,
         _placesService = placesService,
-        _driveSession = driveSession;
+        _driveSession = driveSession,
+        _onInjectTestIncident = onInjectTestIncident;
 
   final LocationPermissionService? _locationPermissionService;
   final LocationProvider? _locationProvider;
@@ -43,6 +45,7 @@ class AnimalMapApp extends StatelessWidget {
   final MarkerManager? _markerManager;
   final PlacesService? _placesService;
   final DriveSession? _driveSession;
+  final Future<void> Function()? _onInjectTestIncident;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +63,7 @@ class AnimalMapApp extends StatelessWidget {
             MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl()),
         placesService: _placesService,
         driveSession: _driveSession,
+        onInjectTestIncident: _onInjectTestIncident,
       ),
     );
   }
