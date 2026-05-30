@@ -14,4 +14,15 @@ class LocationProviderImpl implements LocationProvider {
       return null;
     }
   }
+
+  @override
+  Stream<LatLng> positionStream() {
+    return Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        // Emit only after moving 10 m — avoids noisy updates while stationary.
+        distanceFilter: 10,
+      ),
+    ).map((position) => LatLng(position.latitude, position.longitude));
+  }
 }

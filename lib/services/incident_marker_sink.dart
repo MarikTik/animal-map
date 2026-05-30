@@ -3,12 +3,18 @@ import 'dart:async';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../filters/incident_filter.dart';
+import '../models/incident.dart';
 import 'incident_socket_service.dart';
 import 'marker_manager.dart';
 import 'tts_service.dart';
 
+/// Called for each incident that passes the filter, after the marker has been
+/// added and TTS fired. Used by overlay mode to push an alert to the bubble.
+typedef IncidentAlertCallback = void Function(Incident incident);
+
 /// Pipes filtered incidents from an [IncidentSocketService] into a
-/// [MarkerManager], optionally announcing each incident via [TtsService].
+/// [MarkerManager], optionally announcing each incident via [TtsService]
+/// and notifying [onAlert] for any extra side effect (e.g. overlay banner).
 ///
 /// Call [attach] once to start the subscription and [detach] to stop it.
 /// The sink does not own the lifecycle of the socket, the manager, or the
@@ -19,15 +25,18 @@ class IncidentMarkerSink {
     required IncidentFilter filter,
     required MarkerManager markerManager,
     TtsService? ttsService,
+    IncidentAlertCallback? onAlert,
   })  : _socketService = socketService,
         _filter = filter,
         _markerManager = markerManager,
-        _ttsService = ttsService;
+        _ttsService = ttsService,
+        _onAlert = onAlert;
 
   final IncidentSocketService _socketService;
   final IncidentFilter _filter;
   final MarkerManager _markerManager;
   final TtsService? _ttsService;
+  final IncidentAlertCallback? _onAlert;
 
   StreamSubscription<dynamic>? _subscription;
 
@@ -52,6 +61,7 @@ class IncidentMarkerSink {
         );
 
         _ttsService?.speak(incident.type.alertPhrase);
+        _onAlert?.call(incident);
       },
       onError: (Object error, StackTrace stack) {
         // ignore: avoid_print

@@ -13,9 +13,15 @@ class FakeLocationProvider implements LocationProvider {
   /// How many times [getCurrentLocation] has been called.
   int callCount = 0;
 
+  /// Positions to emit from [positionStream]. Empty by default.
+  List<LatLng> streamPositions = const [];
+
   @override
   Future<LatLng?> getCurrentLocation() async {
     callCount++;
     return locationToReturn;
   }
+
+  @override
+  Stream<LatLng> positionStream() => Stream.fromIterable(streamPositions);
 }
