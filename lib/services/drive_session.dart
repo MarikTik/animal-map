@@ -46,7 +46,7 @@ class DriveSession {
       if (!granted) return false;
     }
 
-    await _overlayController.show();
+    await ensureOverlay();
 
     // Keep the proximity filter centred on the moving car.
     _positionSub?.cancel();
@@ -56,6 +56,23 @@ class DriveSession {
 
     await _navigationLauncher.navigateTo(destination);
     return true;
+  }
+
+  /// Ensures the overlay window is visible and its engine has had a moment to
+  /// register its message listener.
+  ///
+  /// Useful for the debug inject path, where there may be no active drive yet,
+  /// and to avoid a race at the start of a drive where an alert is sent before
+  /// the overlay engine is ready.
+  Future<void> ensureOverlay() async {
+    if (!await _overlayController.isPermissionGranted()) {
+      final granted = await _overlayController.requestPermission();
+      if (!granted) return;
+    }
+    await _overlayController.show();
+    // The overlay runs in a separate engine; give it a beat to spin up and
+    // subscribe to the message channel before the first send.
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   /// Pushes an incident alert to the overlay banner.

@@ -62,6 +62,9 @@ void main() {
     // Re-centre the filter on the current position so the injected incident
     // passes the proximity check even when no drive is active yet.
     filter.updateReferencePoint(here);
+    // Make sure the overlay is up (and its engine ready) so the banner renders
+    // even when testing without launching Google Maps.
+    await driveSession.ensureOverlay();
     socketService.inject(debugFactory.near(here));
   }
 

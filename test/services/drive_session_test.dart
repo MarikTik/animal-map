@@ -113,5 +113,36 @@ void main() {
       expect(overlay.hidden, isTrue);
       expect(session.isActive, isFalse);
     });
+
+    group('ensureOverlay', () {
+      test('shows the overlay when permitted', () async {
+        final session = buildSession();
+
+        await session.ensureOverlay();
+
+        expect(overlay.shown, isTrue);
+      });
+
+      test('requests permission when not granted', () async {
+        overlay.permissionGranted = false;
+        overlay.requestReturns = true;
+        final session = buildSession();
+
+        await session.ensureOverlay();
+
+        expect(overlay.requestCount, 1);
+        expect(overlay.shown, isTrue);
+      });
+
+      test('does not show when permission denied', () async {
+        overlay.permissionGranted = false;
+        overlay.requestReturns = false;
+        final session = buildSession();
+
+        await session.ensureOverlay();
+
+        expect(overlay.shown, isFalse);
+      });
+    });
   });
 }
