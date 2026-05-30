@@ -5,7 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../config/map_config.dart';
 import '../../models/incident_type.dart';
-import '../../services/drive_session.dart';
+import '../../services/directions_service.dart';
 import '../../services/location_permission_service.dart';
 import '../../services/location_provider.dart';
 import '../../services/location_store.dart';
@@ -28,7 +28,7 @@ class MapScreen extends StatefulWidget {
     required this.locationStore,
     required this.markerManager,
     this.placesService,
-    this.driveSession,
+    this.directionsService,
     this.onInjectTestIncident,
   });
 
@@ -42,10 +42,10 @@ class MapScreen extends StatefulWidget {
   /// Pass `null` to hide the search affordance (e.g. in tests).
   final PlacesService? placesService;
 
-  /// When provided, selecting a destination offers to start a demo drive —
-  /// launching external Google Maps navigation with the incident overlay.
-  /// Pass `null` to keep search as in-app camera movement only (e.g. tests).
-  final DriveSession? driveSession;
+  /// When provided, selecting a destination draws the driving route from the
+  /// user's current position to it as a polyline on this in-app map.
+  /// Pass `null` to skip route drawing (e.g. in tests).
+  final DirectionsService? directionsService;
 
   /// When provided, a debug action injects a synthetic incident near the
   /// user's current position through the real incident pipeline (socket →
@@ -72,6 +72,9 @@ class _MapScreenState extends State<MapScreen>
 
   /// Position of the tapped marker driving the pulse circle.
   LatLng? _pulsePosition;
+
+  /// The current route polyline drawn from the user to a searched destination.
+  final Set<Polyline> _routePolylines = {};
 
   /// Animation controller for the pulse circle.
   late final AnimationController _pulseController;
@@ -175,62 +178,79 @@ class _MapScreenState extends State<MapScreen>
   }
 
   Future<void> _onSearchTapped() async {
-    final latLng = await showSearch<LatLng?>(
+    final destination = await showSearch<LatLng?>(
       context: context,
       delegate: PlaceSearchDelegate(placesService: widget.placesService!),
     );
-    if (latLng == null || !mounted) return;
+    if (destination == null || !mounted) return;
 
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(latLng, MapConfig.defaultZoom),
+      CameraUpdate.newLatLngZoom(destination, MapConfig.defaultZoom),
     );
 
-    // With a drive session, offer to launch real Google Maps navigation
-    // with the incident overlay on top.
-    if (widget.driveSession != null) {
-      await _offerDrive(latLng);
+    // Draw the driving route from the user's current position to the
+    // destination on this in-app map.
+    if (widget.directionsService != null) {
+      await _drawRouteTo(destination);
     }
   }
 
-  Future<void> _offerDrive(LatLng destination) async {
-    final start = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Start drive with incident alerts?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Opens Google Maps navigation and shows a floating alert '
-              'overlay on top.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: const Icon(Icons.navigation),
-              label: const Text('Start drive'),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (start != true || !mounted) return;
-
-    final launched = await widget.driveSession!.start(destination);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Overlay permission needed to show alerts.'),
-        ),
-      );
+  Future<void> _drawRouteTo(LatLng destination) async {
+    final origin = await widget.locationProvider.getCurrentLocation();
+    if (origin == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Current location unavailable.')),
+        );
+      }
+      return;
     }
+
+    final points = await widget.directionsService!.route(origin, destination);
+    if (!mounted) return;
+
+    if (points.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No route found.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _routePolylines
+        ..clear()
+        ..add(Polyline(
+          polylineId: const PolylineId('route'),
+          points: points,
+          width: 6,
+          color: Theme.of(context).colorScheme.primary,
+        ));
+    });
+
+    // Frame the whole route in view.
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngBounds(_boundsFor(points), 60),
+    );
+  }
+
+  /// Computes the [LatLngBounds] enclosing all [points].
+  LatLngBounds _boundsFor(List<LatLng> points) {
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+
+    for (final p in points) {
+      minLat = min(minLat, p.latitude);
+      maxLat = max(maxLat, p.latitude);
+      minLng = min(minLng, p.longitude);
+      maxLng = max(maxLng, p.longitude);
+    }
+
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
   }
 
   @override
@@ -295,6 +315,7 @@ class _MapScreenState extends State<MapScreen>
                   ),
                   markers: widget.markerManager.markers,
                   circles: circles,
+                  polylines: _routePolylines,
                   zoomControlsEnabled: true,
                   zoomGesturesEnabled: true,
                   scrollGesturesEnabled: true,

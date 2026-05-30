@@ -8,29 +8,18 @@ import 'app.dart';
 import 'config/app_config.dart';
 import 'config/map_config.dart';
 import 'filters/proximity_filter.dart';
-import 'overlay/incident_overlay.dart';
 import 'services/debug_incident_factory.dart';
-import 'services/drive_session.dart';
+import 'services/directions_service.dart';
 import 'services/incident_marker_sink.dart';
 import 'services/incident_socket_service_impl.dart';
 import 'services/location_provider_impl.dart';
 import 'services/marker_icon_loader_impl.dart';
 import 'services/marker_manager_impl.dart';
-import 'services/navigation_launcher.dart';
-import 'services/overlay_controller.dart';
 import 'services/places_service.dart';
 import 'services/tts_service_impl.dart';
 
 const _terminalGreen = '\x1B[32m';
 const _terminalReset = '\x1B[0m';
-
-/// Entry point for the floating overlay window's separate Flutter engine.
-///
-/// The flutter_overlay_window plugin looks this symbol up by name in the
-/// app's root library, so it must live in main.dart. It delegates to the
-/// overlay widget defined in lib/overlay/incident_overlay.dart.
-@pragma('vm:entry-point')
-void overlayMain() => runIncidentOverlay();
 
 /// Application entry point.
 void main() {
@@ -39,39 +28,30 @@ void main() {
 
   final markerManager = MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl());
   final placesService = PlacesService(apiKey: AppConfig.mapsApiKey);
+  final directionsService = DirectionsService(apiKey: AppConfig.mapsApiKey);
   final locationProvider = LocationProviderImpl();
   final socketService = IncidentSocketServiceImpl();
 
-  // Shared filter — its reference point is updated live by the DriveSession.
+  // Filter centred on the user; updated when a route is drawn / location known.
   final filter = ProximityFilter(referencePoint: MapConfig.fallbackCenter);
 
-  final driveSession = DriveSession(
-    navigationLauncher: NavigationLauncherImpl(),
-    overlayController: OverlayControllerImpl(),
-    locationProvider: locationProvider,
-    proximityFilter: filter,
-  );
-
   // Debug demo trigger: fabricate an incident near the user's live position
-  // and push it through the real socket stream so it is filtered, spoken, and
-  // shown in the overlay exactly like a server incident.
+  // and push it through the real socket stream so it is filtered, drawn as a
+  // marker on the in-app map, and announced via TTS — exactly like a real one.
   final debugFactory = DebugIncidentFactory();
   Future<void> injectTestIncident() async {
     final here = await locationProvider.getCurrentLocation() ??
         MapConfig.fallbackCenter;
     // Re-centre the filter on the current position so the injected incident
-    // passes the proximity check even when no drive is active yet.
+    // passes the proximity check.
     filter.updateReferencePoint(here);
-    // Make sure the overlay is up (and its engine ready) so the banner renders
-    // even when testing without launching Google Maps.
-    await driveSession.ensureOverlay();
     socketService.inject(debugFactory.near(here));
   }
 
   runApp(AnimalMapApp(
     markerManager: markerManager,
     placesService: placesService,
-    driveSession: driveSession,
+    directionsService: directionsService,
     onInjectTestIncident: injectTestIncident,
   ));
 
@@ -79,7 +59,6 @@ void main() {
     socketService: socketService,
     markerManager: markerManager,
     filter: filter,
-    driveSession: driveSession,
   ));
 }
 
@@ -92,12 +71,11 @@ void _initializeMapRenderer() {
 }
 
 /// Connects the incident socket and pipes filtered events into the marker
-/// manager (TTS announcement) and the overlay banner (via the drive session).
+/// manager — drawing each incident as a map marker and announcing it via TTS.
 Future<void> _startIncidentPipeline({
   required IncidentSocketServiceImpl socketService,
   required MarkerManagerImpl markerManager,
   required ProximityFilter filter,
-  required DriveSession driveSession,
 }) async {
   final tts = TtsServiceImpl();
   final sink = IncidentMarkerSink(
@@ -105,7 +83,6 @@ Future<void> _startIncidentPipeline({
     filter: filter,
     markerManager: markerManager,
     ttsService: tts,
-    onAlert: driveSession.pushAlert,
   );
 
   await socketService.connect();

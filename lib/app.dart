@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/map/map_screen.dart';
-import 'services/drive_session.dart';
+import 'services/directions_service.dart';
 import 'services/location_permission_service.dart';
 import 'services/location_permission_service_impl.dart';
 import 'services/location_provider.dart';
@@ -29,14 +29,14 @@ class AnimalMapApp extends StatelessWidget {
     LocationStore? locationStore,
     MarkerManager? markerManager,
     PlacesService? placesService,
-    DriveSession? driveSession,
+    DirectionsService? directionsService,
     Future<void> Function()? onInjectTestIncident,
   })  : _locationPermissionService = locationPermissionService,
         _locationProvider = locationProvider,
         _locationStore = locationStore,
         _markerManager = markerManager,
         _placesService = placesService,
-        _driveSession = driveSession,
+        _directionsService = directionsService,
         _onInjectTestIncident = onInjectTestIncident;
 
   final LocationPermissionService? _locationPermissionService;
@@ -44,7 +44,7 @@ class AnimalMapApp extends StatelessWidget {
   final LocationStore? _locationStore;
   final MarkerManager? _markerManager;
   final PlacesService? _placesService;
-  final DriveSession? _driveSession;
+  final DirectionsService? _directionsService;
   final Future<void> Function()? _onInjectTestIncident;
 
   @override
@@ -62,7 +62,7 @@ class AnimalMapApp extends StatelessWidget {
         markerManager: _markerManager ??
             MarkerManagerImpl(iconLoader: MarkerIconLoaderImpl()),
         placesService: _placesService,
-        driveSession: _driveSession,
+        directionsService: _directionsService,
         onInjectTestIncident: _onInjectTestIncident,
       ),
     );
