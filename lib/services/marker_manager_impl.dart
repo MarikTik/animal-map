@@ -1,7 +1,7 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../config/map_config.dart';
-import '../models/hazard_type.dart';
+import '../models/incident_type.dart';
 import 'marker_icon_loader.dart';
 import 'marker_manager.dart';
 
@@ -36,13 +36,13 @@ class MarkerManagerImpl extends MarkerManager {
   @override
   String addMarker({
     required LatLng position,
-    required HazardType? hazardType,
+    required IncidentType? incidentType,
   }) {
     final id = 'marker_${_nextId++}';
-    final entry = _MarkerEntry(position: position, hazardType: hazardType)
+    final entry = _MarkerEntry(position: position, incidentType: incidentType)
       ..builtAtSize = _bucket(_currentSize);
     _entries[id] = entry;
-    _markers[id] = _buildMarker(id, position, hazardType);
+    _markers[id] = _buildMarker(id, position, incidentType);
     _invalidateCache();
     return id;
   }
@@ -78,7 +78,7 @@ class MarkerManagerImpl extends MarkerManager {
     _markers[markerId] = _buildMarker(
       markerId,
       entry.position,
-      entry.hazardType,
+      entry.incidentType,
       sizeOverride: _currentSize * scale,
     );
     _invalidateCache();
@@ -92,7 +92,7 @@ class MarkerManagerImpl extends MarkerManager {
       _markers[entry.key] = _buildMarker(
         entry.key,
         entry.value.position,
-        entry.value.hazardType,
+        entry.value.incidentType,
       );
       entry.value.builtAtSize = bucketedSize;
       anyRebuilt = true;
@@ -105,21 +105,21 @@ class MarkerManagerImpl extends MarkerManager {
   Marker _buildMarker(
     String id,
     LatLng position,
-    HazardType? hazardType, {
+    IncidentType? incidentType, {
     double? sizeOverride,
   }) {
     return Marker(
       markerId: MarkerId(id),
       position: position,
-      icon: _iconLoader.load(hazardType, size: _bucket(sizeOverride ?? _currentSize)),
-      onTap: () => onMarkerTapped?.call(id, hazardType),
+      icon: _iconLoader.load(incidentType, size: _bucket(sizeOverride ?? _currentSize)),
+      onTap: () => onMarkerTapped?.call(id, incidentType),
     );
   }
 }
 
 class _MarkerEntry {
-  _MarkerEntry({required this.position, required this.hazardType});
+  _MarkerEntry({required this.position, required this.incidentType});
   final LatLng position;
-  final HazardType? hazardType;
+  final IncidentType? incidentType;
   double builtAtSize = -1;
 }

@@ -1,3 +1,7 @@
+import 'incident_type.dart';
+
+export 'incident_type.dart';
+
 /// A detected road incident received from the backend.
 class Incident {
   const Incident({
@@ -43,25 +47,6 @@ class Incident {
         'recommendedAction: $recommendedAction, '
         'evidence: $evidence'
         ')';
-  }
-}
-
-enum IncidentType {
-  animalOnRoad('animal_on_road'),
-  personOnRoad('person_on_road'),
-  stoppedVehicle('stopped_vehicle'),
-  roadObstruction('road_obstruction'),
-  unknown('unknown');
-
-  const IncidentType(this.jsonValue);
-
-  final String jsonValue;
-
-  static IncidentType fromJson(String value) {
-    for (final type in values) {
-      if (type.jsonValue == value) return type;
-    }
-    throw FormatException('Unsupported incident type: $value');
   }
 }
 

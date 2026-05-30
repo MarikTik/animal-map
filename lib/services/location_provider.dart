@@ -7,4 +7,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 abstract class LocationProvider {
   /// Returns the device's current position, or `null` if unavailable.
   Future<LatLng?> getCurrentLocation();
+
+  /// A continuous stream of position updates as the device moves.
+  ///
+  /// Used to keep proximity-based filtering centred on the user during a
+  /// live drive. Emits a new [LatLng] each time the device moves a
+  /// meaningful distance.
+  Stream<LatLng> positionStream();
 }

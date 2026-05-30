@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:animal_map/config/map_config.dart';
-import 'package:animal_map/models/hazard_type.dart';
+import 'package:animal_map/models/incident_type.dart';
 import 'package:animal_map/services/marker_manager_impl.dart';
 
 import '../fakes/fake_marker_icon_loader.dart';
@@ -24,7 +24,7 @@ void main() {
     test('addMarker creates a marker at the given position', () {
       const position = LatLng(33.6846, -117.8265);
 
-      manager.addMarker(position: position, hazardType: HazardType.deer);
+      manager.addMarker(position: position, incidentType: IncidentType.animalOnRoad);
 
       expect(manager.markers.length, 1);
       expect(manager.markers.first.position, position);
@@ -33,8 +33,8 @@ void main() {
     test('addMarker returns a unique ID', () {
       const position = LatLng(33.6846, -117.8265);
 
-      final id1 = manager.addMarker(position: position, hazardType: HazardType.deer);
-      final id2 = manager.addMarker(position: position, hazardType: HazardType.fox);
+      final id1 = manager.addMarker(position: position, incidentType: IncidentType.animalOnRoad);
+      final id2 = manager.addMarker(position: position, incidentType: IncidentType.animalOnRoad);
 
       expect(id1, isNot(id2));
     });
@@ -43,26 +43,26 @@ void main() {
       const position = LatLng(33.6846, -117.8265);
 
       String? tappedId;
-      HazardType? tappedType;
+      IncidentType? tappedType;
       manager.onMarkerTapped = (id, type) {
         tappedId = id;
         tappedType = type;
       };
 
-      final id = manager.addMarker(position: position, hazardType: HazardType.deer);
+      final id = manager.addMarker(position: position, incidentType: IncidentType.animalOnRoad);
       manager.markers.first.onTap!();
 
       expect(tappedId, id);
-      expect(tappedType, HazardType.deer);
+      expect(tappedType, IncidentType.animalOnRoad);
     });
 
     test('addMarker with null animal type calls onMarkerTapped with null', () {
       const position = LatLng(33.6846, -117.8265);
 
-      HazardType? tappedType = HazardType.bear; // sentinel
+      IncidentType? tappedType = IncidentType.animalOnRoad; // sentinel
       manager.onMarkerTapped = (_, type) => tappedType = type;
 
-      manager.addMarker(position: position, hazardType: null);
+      manager.addMarker(position: position, incidentType: null);
       manager.markers.first.onTap!();
 
       expect(tappedType, isNull);
@@ -71,24 +71,24 @@ void main() {
     test('addMarker delegates to icon loader with correct animal type', () {
       const position = LatLng(33.6846, -117.8265);
 
-      manager.addMarker(position: position, hazardType: HazardType.coyote);
-      manager.addMarker(position: position, hazardType: null);
+      manager.addMarker(position: position, incidentType: IncidentType.animalOnRoad);
+      manager.addMarker(position: position, incidentType: null);
 
-      expect(fakeIconLoader.loadedTypes, [HazardType.coyote, null]);
+      expect(fakeIconLoader.loadedTypes, [IncidentType.animalOnRoad, null]);
     });
 
     test('multiple markers appear in the markers set', () {
       manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
       manager.addMarker(
         position: const LatLng(33.69, -117.83),
-        hazardType: HazardType.bear,
+        incidentType: IncidentType.animalOnRoad,
       );
       manager.addMarker(
         position: const LatLng(33.70, -117.84),
-        hazardType: null,
+        incidentType: null,
       );
 
       expect(manager.markers.length, 3);
@@ -97,7 +97,7 @@ void main() {
     test('removeMarker removes the specified marker', () {
       final id = manager.addMarker(
         position: const LatLng(33.6846, -117.8265),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.removeMarker(id);
@@ -108,7 +108,7 @@ void main() {
     test('removeMarker with unknown ID does nothing', () {
       manager.addMarker(
         position: const LatLng(33.6846, -117.8265),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.removeMarker('nonexistent');
@@ -119,11 +119,11 @@ void main() {
     test('clear removes all markers', () {
       manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
       manager.addMarker(
         position: const LatLng(33.69, -117.83),
-        hazardType: HazardType.bear,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.clear();
@@ -134,7 +134,7 @@ void main() {
     test('updateMarkerSize with 0 hides all markers', () {
       manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.updateMarkerSize(0);
@@ -145,7 +145,7 @@ void main() {
     test('updateMarkerSize with positive size shows markers after being hidden', () {
       manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.updateMarkerSize(0);
@@ -158,7 +158,7 @@ void main() {
     test('updateMarkerSize rebuilds markers with new icon size', () {
       manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       final initialLoadCount = fakeIconLoader.loadCallCount;
@@ -174,7 +174,7 @@ void main() {
 
       manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       expect(fakeIconLoader.loadedSizes.last, 48);
@@ -183,7 +183,7 @@ void main() {
     test('setMarkerScale rebuilds marker at bucketed scaled size', () {
       final id = manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.setMarkerScale(id, scale: 1.3);
@@ -196,7 +196,7 @@ void main() {
     test('setMarkerScale with 1.0 restores to bucketed normal size', () {
       final id = manager.addMarker(
         position: const LatLng(33.68, -117.82),
-        hazardType: HazardType.deer,
+        incidentType: IncidentType.animalOnRoad,
       );
 
       manager.setMarkerScale(id, scale: 1.3);
@@ -219,7 +219,7 @@ void main() {
       test('updateMarkerSize does not reload icon when bucketed size unchanged', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         // Both sizes round to the same 8-px bucket (48).
@@ -233,7 +233,7 @@ void main() {
       test('updateMarkerSize reloads icon when bucketed size changes', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         manager.updateMarkerSize(48);
@@ -246,7 +246,7 @@ void main() {
       test('markers getter returns same Set instance when nothing changed', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         final first = manager.markers;
@@ -258,13 +258,13 @@ void main() {
       test('markers getter returns new Set instance after mutation', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         final before = manager.markers;
         manager.addMarker(
           position: const LatLng(33.69, -117.83),
-          hazardType: HazardType.fox,
+          incidentType: IncidentType.animalOnRoad,
         );
         final after = manager.markers;
 
@@ -279,7 +279,7 @@ void main() {
 
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         expect(notified, isTrue);
@@ -288,7 +288,7 @@ void main() {
       test('notifies listeners when a marker is removed', () {
         final id = manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         var notified = false;
@@ -301,7 +301,7 @@ void main() {
       test('notifies listeners when markers are cleared', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         var notified = false;
@@ -314,7 +314,7 @@ void main() {
       test('notifies listeners when marker size changes bucket', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         manager.updateMarkerSize(48);
@@ -328,7 +328,7 @@ void main() {
       test('does not notify listeners when bucketed size is unchanged', () {
         manager.addMarker(
           position: const LatLng(33.68, -117.82),
-          hazardType: HazardType.deer,
+          incidentType: IncidentType.animalOnRoad,
         );
 
         manager.updateMarkerSize(48);

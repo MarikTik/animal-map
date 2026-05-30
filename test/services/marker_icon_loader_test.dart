@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import 'package:animal_map/models/hazard_type.dart';
+import 'package:animal_map/models/incident_type.dart';
 import 'package:animal_map/services/marker_icon_loader_impl.dart';
 
 void main() {
@@ -19,48 +19,62 @@ void main() {
     });
 
     test('returns an AssetMapBitmap for a known animal type', () {
-      final icon = loader.load(HazardType.deer, size: 96);
+      final icon = loader.load(IncidentType.animalOnRoad, size: 96);
 
       expect(icon, isA<AssetMapBitmap>());
     });
 
     test('AssetMapBitmap references the correct asset path', () {
-      final icon = loader.load(HazardType.deer, size: 96) as AssetMapBitmap;
+      final icon = loader.load(IncidentType.animalOnRoad, size: 96) as AssetMapBitmap;
 
-      expect(icon.assetName, HazardType.deer.assetPath);
+      expect(icon.assetName, IncidentType.animalOnRoad.assetPath);
     });
 
     test('AssetMapBitmap uses the specified size for width and height', () {
-      final icon = loader.load(HazardType.deer, size: 48) as AssetMapBitmap;
+      final icon = loader.load(IncidentType.animalOnRoad, size: 48) as AssetMapBitmap;
 
       expect(icon.width, 48);
       expect(icon.height, 48);
     });
 
     test('different sizes produce different dimensions', () {
-      final small = loader.load(HazardType.deer, size: 24) as AssetMapBitmap;
-      final large = loader.load(HazardType.deer, size: 96) as AssetMapBitmap;
+      final small = loader.load(IncidentType.animalOnRoad, size: 24) as AssetMapBitmap;
+      final large = loader.load(IncidentType.animalOnRoad, size: 96) as AssetMapBitmap;
 
       expect(small.width, isNot(large.width));
     });
 
-    test('returns different instances for different animal types', () {
-      final deer = loader.load(HazardType.deer, size: 96);
-      final coyote = loader.load(HazardType.coyote, size: 96);
-
-      expect(identical(deer, coyote), isFalse);
+    test('returns defaultMarker for incident types without an asset path', () {
+      // personOnRoad, stoppedVehicle, roadObstruction, unknown all have
+      // assetPath == null until proper icons are added.
+      expect(
+        loader.load(IncidentType.personOnRoad, size: 96),
+        BitmapDescriptor.defaultMarker,
+      );
+      expect(
+        loader.load(IncidentType.stoppedVehicle, size: 96),
+        BitmapDescriptor.defaultMarker,
+      );
+      expect(
+        loader.load(IncidentType.roadObstruction, size: 96),
+        BitmapDescriptor.defaultMarker,
+      );
+      expect(
+        loader.load(IncidentType.unknown, size: 96),
+        BitmapDescriptor.defaultMarker,
+      );
     });
 
     test('returns identical instance on repeated call with same args (cache hit)', () {
-      final first = loader.load(HazardType.deer, size: 96);
-      final second = loader.load(HazardType.deer, size: 96);
+      final first = loader.load(IncidentType.animalOnRoad, size: 96);
+      final second = loader.load(IncidentType.animalOnRoad, size: 96);
 
       expect(identical(first, second), isTrue);
     });
 
     test('returns different instance for different size (cache miss)', () {
-      final a = loader.load(HazardType.deer, size: 48);
-      final b = loader.load(HazardType.deer, size: 96);
+      final a = loader.load(IncidentType.animalOnRoad, size: 48);
+      final b = loader.load(IncidentType.animalOnRoad, size: 96);
 
       expect(identical(a, b), isFalse);
     });

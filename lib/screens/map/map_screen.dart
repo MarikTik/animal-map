@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../config/map_config.dart';
-import '../../models/hazard_type.dart';
+import '../../models/incident_type.dart';
+import '../../services/drive_session.dart';
 import '../../services/location_permission_service.dart';
 import '../../services/location_provider.dart';
 import '../../services/location_store.dart';
 import '../../services/marker_manager.dart';
+import '../../services/places_service.dart';
+import 'place_search_delegate.dart';
 
 /// Duration of one full grow-then-shrink pulse cycle.
 const _pulseDuration = Duration(milliseconds: 500);
@@ -24,12 +27,30 @@ class MapScreen extends StatefulWidget {
     required this.locationProvider,
     required this.locationStore,
     required this.markerManager,
+    this.placesService,
+    this.driveSession,
+    this.onInjectTestIncident,
   });
 
   final LocationPermissionService locationPermissionService;
   final LocationProvider locationProvider;
   final LocationStore locationStore;
   final MarkerManager markerManager;
+
+  /// When provided, a search icon appears in the AppBar that lets the user
+  /// find and navigate to any location via the Places Autocomplete API.
+  /// Pass `null` to hide the search affordance (e.g. in tests).
+  final PlacesService? placesService;
+
+  /// When provided, selecting a destination offers to start a demo drive —
+  /// launching external Google Maps navigation with the incident overlay.
+  /// Pass `null` to keep search as in-app camera movement only (e.g. tests).
+  final DriveSession? driveSession;
+
+  /// When provided, a debug action injects a synthetic incident near the
+  /// user's current position through the real incident pipeline (socket →
+  /// filter → TTS + overlay). Pass `null` to hide it (e.g. in tests).
+  final Future<void> Function()? onInjectTestIncident;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -132,24 +153,83 @@ class _MapScreenState extends State<MapScreen>
   void _onMapTap(LatLng position) {
     if (!_placementMode) return;
 
-    final types = [...HazardType.values, null];
+    final types = [...IncidentType.values, null];
     final type = types[_random.nextInt(types.length)];
     // No setState — MarkerManagerImpl notifies ListenableBuilder directly.
-    widget.markerManager.addMarker(position: position, hazardType: type);
+    widget.markerManager.addMarker(position: position, incidentType: type);
   }
 
-  void _onMarkerTapped(String markerId, HazardType? hazardType) {
+  void _onMarkerTapped(String markerId, IncidentType? incidentType) {
     // Look up the marker position to anchor the pulse circle.
     final manager = widget.markerManager;
     final marker = manager.markers.where((m) => m.markerId.value == markerId).firstOrNull;
 
     setState(() {
-      _selectedHazardLabel = hazardType?.label ?? 'Unknown hazard';
+      _selectedHazardLabel = incidentType?.label ?? 'Unknown hazard';
       _pulsePosition = marker?.position;
     });
 
     if (_pulsePosition != null) {
       _pulseController.forward(from: 0);
+    }
+  }
+
+  Future<void> _onSearchTapped() async {
+    final latLng = await showSearch<LatLng?>(
+      context: context,
+      delegate: PlaceSearchDelegate(placesService: widget.placesService!),
+    );
+    if (latLng == null || !mounted) return;
+
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(latLng, MapConfig.defaultZoom),
+    );
+
+    // With a drive session, offer to launch real Google Maps navigation
+    // with the incident overlay on top.
+    if (widget.driveSession != null) {
+      await _offerDrive(latLng);
+    }
+  }
+
+  Future<void> _offerDrive(LatLng destination) async {
+    final start = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Start drive with incident alerts?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Opens Google Maps navigation and shows a floating alert '
+              'overlay on top.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              icon: const Icon(Icons.navigation),
+              label: const Text('Start drive'),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (start != true || !mounted) return;
+
+    final launched = await widget.driveSession!.start(destination);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Overlay permission needed to show alerts.'),
+        ),
+      );
     }
   }
 
@@ -166,6 +246,20 @@ class _MapScreenState extends State<MapScreen>
       appBar: AppBar(
         title: const Text('Wild Watch'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          if (widget.onInjectTestIncident != null)
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              tooltip: 'Inject test incident near me',
+              onPressed: () => widget.onInjectTestIncident!(),
+            ),
+          if (widget.placesService != null)
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Search location',
+              onPressed: _onSearchTapped,
+            ),
+        ],
       ),
       body: Stack(
         children: [

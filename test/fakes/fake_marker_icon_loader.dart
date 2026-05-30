@@ -1,6 +1,6 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import 'package:animal_map/models/hazard_type.dart';
+import 'package:animal_map/models/incident_type.dart';
 import 'package:animal_map/services/marker_icon_loader.dart';
 
 /// A fake [MarkerIconLoader] for testing.
@@ -13,15 +13,15 @@ class FakeMarkerIconLoader implements MarkerIconLoader {
   int loadCallCount = 0;
 
   /// The animal types that were passed to [load], in order.
-  final List<HazardType?> loadedTypes = [];
+  final List<IncidentType?> loadedTypes = [];
 
   /// The sizes that were passed to [load], in order.
   final List<double> loadedSizes = [];
 
   @override
-  BitmapDescriptor load(HazardType? hazardType, {required double size}) {
+  BitmapDescriptor load(IncidentType? incidentType, {required double size}) {
     loadCallCount++;
-    loadedTypes.add(hazardType);
+    loadedTypes.add(incidentType);
     loadedSizes.add(size);
     return BitmapDescriptor.defaultMarker;
   }
