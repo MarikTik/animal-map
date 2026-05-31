@@ -32,7 +32,7 @@ class AnimalMapApp extends StatelessWidget {
     PlacesService? placesService,
     DirectionsService? directionsService,
     Future<void> Function()? onInjectTestIncident,
-    void Function(LatLng position)? onPlaceTestIncident,
+    void Function(LatLng position, String? customPhrase)? onPlaceTestIncident,
   })  : _locationPermissionService = locationPermissionService,
         _locationProvider = locationProvider,
         _locationStore = locationStore,
@@ -49,7 +49,8 @@ class AnimalMapApp extends StatelessWidget {
   final PlacesService? _placesService;
   final DirectionsService? _directionsService;
   final Future<void> Function()? _onInjectTestIncident;
-  final void Function(LatLng position)? _onPlaceTestIncident;
+  final void Function(LatLng position, String? customPhrase)?
+      _onPlaceTestIncident;
 
   @override
   Widget build(BuildContext context) {

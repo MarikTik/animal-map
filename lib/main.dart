@@ -31,6 +31,7 @@ void main() {
   final directionsService = DirectionsService(apiKey: AppConfig.mapsApiKey);
   final locationProvider = LocationProviderImpl();
   final socketService = IncidentSocketServiceImpl();
+  final tts = TtsServiceImpl();
 
   // Filter centred on the user; updated when a route is drawn / location known.
   final filter = ProximityFilter(referencePoint: MapConfig.fallbackCenter);
@@ -48,10 +49,16 @@ void main() {
     socketService.inject(debugFactory.near(here));
   }
 
-  // Placing a marker on the map injects an incident at that exact spot through
-  // the real pipeline, so it drops a marker AND fires the voice alert. The
-  // filter is re-centred on the tap so the incident always passes proximity.
-  void placeTestIncident(LatLng position) {
+  // Placing a marker on the map. When [customPhrase] is non-empty, speak that
+  // exact text and drop a marker directly. Otherwise inject an incident at the
+  // tapped point through the real pipeline, which speaks the type's phrase.
+  void placeTestIncident(LatLng position, String? customPhrase) {
+    final phrase = customPhrase?.trim() ?? '';
+    if (phrase.isNotEmpty) {
+      markerManager.addMarker(position: position, incidentType: null);
+      tts.speak(phrase);
+      return;
+    }
     filter.updateReferencePoint(position);
     socketService.inject(debugFactory.at(position));
   }
@@ -68,6 +75,7 @@ void main() {
     socketService: socketService,
     markerManager: markerManager,
     filter: filter,
+    tts: tts,
   ));
 }
 
@@ -85,8 +93,8 @@ Future<void> _startIncidentPipeline({
   required IncidentSocketServiceImpl socketService,
   required MarkerManagerImpl markerManager,
   required ProximityFilter filter,
+  required TtsServiceImpl tts,
 }) async {
-  final tts = TtsServiceImpl();
   final sink = IncidentMarkerSink(
     socketService: socketService,
     filter: filter,

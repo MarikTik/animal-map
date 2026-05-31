@@ -53,11 +53,13 @@ class MapScreen extends StatefulWidget {
   /// filter → TTS + overlay). Pass `null` to hide it (e.g. in tests).
   final Future<void> Function()? onInjectTestIncident;
 
-  /// When provided, tapping the map in placement mode injects an incident at
-  /// the tapped position through the real incident pipeline (so it drops a
-  /// marker AND fires the voice alert). Pass `null` to fall back to a direct
-  /// marker placement with no alert (e.g. in tests).
-  final void Function(LatLng position)? onPlaceTestIncident;
+  /// When provided, tapping the map in placement mode places a marker and
+  /// fires a voice alert. If a custom phrase is supplied it is spoken verbatim;
+  /// otherwise an incident is injected through the pipeline and the type's
+  /// phrase is spoken. Pass `null` to fall back to a direct, silent marker
+  /// placement (e.g. in tests).
+  final void Function(LatLng position, String? customPhrase)?
+      onPlaceTestIncident;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -76,6 +78,10 @@ class _MapScreenState extends State<MapScreen>
 
   bool _placementMode = false;
   String? _selectedHazardLabel;
+
+  /// Optional custom phrase spoken when placing a marker. When empty, the
+  /// incident's type phrase is used instead.
+  final TextEditingController _customPhraseController = TextEditingController();
 
   /// Position of the tapped marker driving the pulse circle.
   LatLng? _pulsePosition;
@@ -165,10 +171,12 @@ class _MapScreenState extends State<MapScreen>
 
     // Prefer routing through the real incident pipeline so placing a marker
     // also fires the proximity filter + TTS voice alert, exactly like a real
-    // incident. Falls back to a direct (silent) marker when no pipeline hook
-    // is provided (e.g. in widget tests).
+    // incident. A non-empty custom phrase is spoken verbatim instead of the
+    // type phrase. Falls back to a direct (silent) marker when no pipeline
+    // hook is provided (e.g. in widget tests).
     if (widget.onPlaceTestIncident != null) {
-      widget.onPlaceTestIncident!(position);
+      final custom = _customPhraseController.text.trim();
+      widget.onPlaceTestIncident!(position, custom.isEmpty ? null : custom);
       return;
     }
 
@@ -271,6 +279,7 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   void dispose() {
+    _customPhraseController.dispose();
     _pulseController.dispose();
     _mapController?.dispose();
     super.dispose();
@@ -344,6 +353,31 @@ class _MapScreenState extends State<MapScreen>
               );
             },
           ),
+          if (_placementMode && widget.onPlaceTestIncident != null)
+            Positioned(
+              left: 12,
+              right: 12,
+              top: 12,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: TextField(
+                  controller: _customPhraseController,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    hintText: 'Custom alert phrase (optional)',
+                    prefixIcon: const Icon(Icons.record_voice_over),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ),
+            ),
           if (_selectedHazardLabel != null)
             Positioned(
               left: 80,
