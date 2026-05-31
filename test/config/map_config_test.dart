@@ -4,9 +4,13 @@ import 'package:animal_map/config/map_config.dart';
 
 void main() {
   group('MapConfig', () {
-    test('fallbackCenter is set to UCSD, La Jolla', () {
-      expect(MapConfig.fallbackCenter.latitude, 32.8801);
-      expect(MapConfig.fallbackCenter.longitude, -117.2340);
+    test('fallback location is Jacobs School of Engineering at UCSD', () {
+      expect(
+        MapConfig.fallbackLocationName,
+        'Jacobs School of Engineering at UCSD',
+      );
+      expect(MapConfig.fallbackCenter.latitude, 32.8815);
+      expect(MapConfig.fallbackCenter.longitude, -117.2350);
     });
 
     test('defaultZoom is appropriate for city-level navigation', () {
@@ -51,10 +55,7 @@ void main() {
         MapConfig.markerHiddenZoom,
         greaterThanOrEqualTo(MapConfig.minZoom),
       );
-      expect(
-        MapConfig.markerHiddenZoom,
-        lessThanOrEqualTo(MapConfig.maxZoom),
-      );
+      expect(MapConfig.markerHiddenZoom, lessThanOrEqualTo(MapConfig.maxZoom));
     });
 
     test('markerFullSizeZoom is above markerHiddenZoom', () {
@@ -65,18 +66,18 @@ void main() {
     });
 
     test('fallbackZoom is at or below minZoom boundary', () {
-      expect(
-        MapConfig.fallbackZoom,
-        greaterThanOrEqualTo(MapConfig.minZoom),
-      );
+      expect(MapConfig.fallbackZoom, greaterThanOrEqualTo(MapConfig.minZoom));
     });
 
-    test('defaultZoom is at or above markerHiddenZoom so markers show when located', () {
-      expect(
-        MapConfig.defaultZoom,
-        greaterThanOrEqualTo(MapConfig.markerHiddenZoom),
-      );
-    });
+    test(
+      'defaultZoom is at or above markerHiddenZoom so markers show when located',
+      () {
+        expect(
+          MapConfig.defaultZoom,
+          greaterThanOrEqualTo(MapConfig.markerHiddenZoom),
+        );
+      },
+    );
 
     group('markerSizeForZoom', () {
       test('returns 0 below markerHiddenZoom', () {
@@ -106,9 +107,8 @@ void main() {
       });
 
       test('mid-range zoom returns a size between min and full', () {
-        final midZoom = (MapConfig.markerHiddenZoom +
-                MapConfig.markerFullSizeZoom) /
-            2;
+        final midZoom =
+            (MapConfig.markerHiddenZoom + MapConfig.markerFullSizeZoom) / 2;
         final size = MapConfig.markerSizeForZoom(midZoom);
 
         expect(size, greaterThanOrEqualTo(MapConfig.markerMinSize));
@@ -117,9 +117,11 @@ void main() {
 
       test('interpolates continuously across the transition range', () {
         final sizes = <double>{};
-        for (var z = MapConfig.markerHiddenZoom;
-            z < MapConfig.markerFullSizeZoom;
-            z += 0.1) {
+        for (
+          var z = MapConfig.markerHiddenZoom;
+          z < MapConfig.markerFullSizeZoom;
+          z += 0.1
+        ) {
           sizes.add(MapConfig.markerSizeForZoom(z));
         }
         // Continuous interpolation produces many distinct values.
@@ -128,9 +130,11 @@ void main() {
 
       test('increases monotonically with zoom', () {
         double previousSize = 0;
-        for (var zoom = MapConfig.markerHiddenZoom;
-            zoom <= MapConfig.markerFullSizeZoom;
-            zoom += 0.5) {
+        for (
+          var zoom = MapConfig.markerHiddenZoom;
+          zoom <= MapConfig.markerFullSizeZoom;
+          zoom += 0.5
+        ) {
           final size = MapConfig.markerSizeForZoom(zoom);
           expect(size, greaterThanOrEqualTo(previousSize));
           previousSize = size;

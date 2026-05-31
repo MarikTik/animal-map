@@ -8,8 +8,11 @@ void main() {
       expect(IncidentType.animalOnRoad.assetPath, 'assets/markers/deer.png');
     });
 
-    test('non-animal types have no asset path (fall back to default marker)', () {
-      expect(IncidentType.personOnRoad.assetPath, isNull);
+    test('roadway detection types have a PNG marker asset path', () {
+      expect(IncidentType.personOnRoad.assetPath, 'assets/markers/deer.png');
+    });
+
+    test('unmapped incident types fall back to default marker', () {
       expect(IncidentType.stoppedVehicle.assetPath, isNull);
       expect(IncidentType.roadObstruction.assetPath, isNull);
       expect(IncidentType.unknown.assetPath, isNull);
@@ -58,10 +61,22 @@ void main() {
       });
 
       test('each type carries its expected spoken phrase', () {
-        expect(IncidentType.animalOnRoad.alertPhrase, 'Animal on the road ahead');
-        expect(IncidentType.personOnRoad.alertPhrase, 'Person on the road ahead');
-        expect(IncidentType.stoppedVehicle.alertPhrase, 'Stopped vehicle ahead');
-        expect(IncidentType.roadObstruction.alertPhrase, 'Road obstruction ahead');
+        expect(
+          IncidentType.animalOnRoad.alertPhrase,
+          'Animal on the road ahead',
+        );
+        expect(
+          IncidentType.personOnRoad.alertPhrase,
+          'Person on the road ahead',
+        );
+        expect(
+          IncidentType.stoppedVehicle.alertPhrase,
+          'Stopped vehicle ahead',
+        );
+        expect(
+          IncidentType.roadObstruction.alertPhrase,
+          'Road obstruction ahead',
+        );
         expect(IncidentType.unknown.alertPhrase, 'Hazard ahead');
       });
     });

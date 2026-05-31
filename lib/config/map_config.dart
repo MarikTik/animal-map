@@ -8,9 +8,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class MapConfig {
   MapConfig._();
 
-  /// Fallback map center when no user location is available.
-  /// Coordinates: UCSD, La Jolla, California.
-  static const LatLng fallbackCenter = LatLng(32.8801, -117.2340);
+  /// Fallback location when no user location is available.
+  static const String fallbackLocationName =
+      'Jacobs School of Engineering at UCSD';
+
+  /// Coordinates: Jacobs School of Engineering at UCSD, La Jolla, California.
+  static const LatLng fallbackCenter = LatLng(32.8815, -117.2350);
 
   /// Zoom level used when the user's location is known.
   static const double defaultZoom = 14.0;
@@ -51,9 +54,9 @@ class MapConfig {
   /// Returns 0 below [markerHiddenZoom], and [markerSize] at or
   /// above [markerFullSizeZoom].
   static double markerSizeForZoom(double zoom) {
-    final t = ((zoom - markerHiddenZoom) /
-            (markerFullSizeZoom - markerHiddenZoom))
-        .clamp(0.0, 1.0);
+    final t =
+        ((zoom - markerHiddenZoom) / (markerFullSizeZoom - markerHiddenZoom))
+            .clamp(0.0, 1.0);
     return t > 0 ? markerMinSize + t * (markerSize - markerMinSize) : 0;
   }
 }

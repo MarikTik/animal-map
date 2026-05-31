@@ -4,15 +4,25 @@
 /// backend payload, an optional `assetPath` used to render the marker icon,
 /// and an `alertPhrase` spoken via TTS when the incident is detected nearby.
 enum IncidentType {
-  animalOnRoad('animal_on_road',
-      assetPath: 'assets/markers/deer.png',
-      alertPhrase: 'Animal on the road ahead'),
-  personOnRoad('person_on_road', alertPhrase: 'Person on the road ahead'),
+  animalOnRoad(
+    'animal_on_road',
+    assetPath: 'assets/markers/deer.png',
+    alertPhrase: 'Animal on the road ahead',
+  ),
+  personOnRoad(
+    'person_on_road',
+    assetPath: 'assets/markers/deer.png',
+    alertPhrase: 'Person on the road ahead',
+  ),
   stoppedVehicle('stopped_vehicle', alertPhrase: 'Stopped vehicle ahead'),
   roadObstruction('road_obstruction', alertPhrase: 'Road obstruction ahead'),
   unknown('unknown', alertPhrase: 'Hazard ahead');
 
-  const IncidentType(this.jsonValue, {this.assetPath, required this.alertPhrase});
+  const IncidentType(
+    this.jsonValue, {
+    this.assetPath,
+    required this.alertPhrase,
+  });
 
   /// JSON-wire identifier as used in the backend incident contract.
   final String jsonValue;

@@ -26,11 +26,11 @@ class IncidentMarkerSink {
     required MarkerManager markerManager,
     TtsService? ttsService,
     IncidentAlertCallback? onAlert,
-  })  : _socketService = socketService,
-        _filter = filter,
-        _markerManager = markerManager,
-        _ttsService = ttsService,
-        _onAlert = onAlert;
+  }) : _socketService = socketService,
+       _filter = filter,
+       _markerManager = markerManager,
+       _ttsService = ttsService,
+       _onAlert = onAlert;
 
   final IncidentSocketService _socketService;
   final IncidentFilter _filter;
@@ -50,8 +50,6 @@ class IncidentMarkerSink {
 
     _subscription = _socketService.incidents.listen(
       (incident) {
-        if (!_filter.passes(incident)) return;
-
         _markerManager.addMarker(
           position: LatLng(
             incident.location.latitude,
@@ -59,6 +57,15 @@ class IncidentMarkerSink {
           ),
           incidentType: incident.type,
         );
+        // ignore: avoid_print
+        print(
+          'Displayed incident marker: ${incident.incidentId} '
+          'position=${incident.location.latitude},${incident.location.longitude}',
+        );
+
+        // Every incident should be visible on the map. Proximity only gates
+        // driver-facing side effects like TTS and overlays.
+        if (!_filter.passes(incident)) return;
 
         _ttsService?.speak(incident.type.alertPhrase);
         _onAlert?.call(incident);

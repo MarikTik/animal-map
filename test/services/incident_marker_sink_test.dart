@@ -104,14 +104,14 @@ void main() {
       sink.detach();
     });
 
-    test('rejects incident when filter returns false', () async {
+    test('still adds marker when filter returns false', () async {
       final sink = buildSink(filter: _RejectAll());
       sink.attach();
 
       socketService.emit(makeIncident());
       await Future<void>.delayed(Duration.zero);
 
-      expect(markerManager.addedMarkers, isEmpty);
+      expect(markerManager.addedMarkers.length, 1);
       sink.detach();
     });
 
@@ -120,11 +120,13 @@ void main() {
       sink.attach();
 
       for (var i = 0; i < 4; i++) {
-        socketService.emit(makeIncident(
-          incidentId: 'id-$i',
-          latitude: 32.88 + i * 0.001,
-          longitude: -117.23,
-        ));
+        socketService.emit(
+          makeIncident(
+            incidentId: 'id-$i',
+            latitude: 32.88 + i * 0.001,
+            longitude: -117.23,
+          ),
+        );
       }
       await Future<void>.delayed(Duration.zero);
 
@@ -196,7 +198,9 @@ void main() {
           localSocket.emit(makeIncident(type: type));
           await Future<void>.delayed(Duration.zero);
 
-          expect(localTts.spoken, [type.alertPhrase], reason: 'failed for $type');
+          expect(localTts.spoken, [
+            type.alertPhrase,
+          ], reason: 'failed for $type');
           sink.detach();
         }
       });
