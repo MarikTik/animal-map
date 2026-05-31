@@ -13,7 +13,7 @@ class MapConfig {
       'Jacobs School of Engineering at UCSD';
 
   /// Coordinates: Jacobs School of Engineering at UCSD, La Jolla, California.
-  static const LatLng fallbackCenter = LatLng(32.8815, -117.2350);
+  static const LatLng fallbackCenter = LatLng(32.8813349, -117.2348484);
 
   /// Zoom level used when the user's location is known.
   static const double defaultZoom = 14.0;

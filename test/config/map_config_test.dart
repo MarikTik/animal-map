@@ -9,8 +9,8 @@ void main() {
         MapConfig.fallbackLocationName,
         'Jacobs School of Engineering at UCSD',
       );
-      expect(MapConfig.fallbackCenter.latitude, 32.8815);
-      expect(MapConfig.fallbackCenter.longitude, -117.2350);
+      expect(MapConfig.fallbackCenter.latitude, 32.8813349);
+      expect(MapConfig.fallbackCenter.longitude, -117.2348484);
     });
 
     test('defaultZoom is appropriate for city-level navigation', () {
